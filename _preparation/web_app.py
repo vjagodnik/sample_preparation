@@ -51,6 +51,7 @@ with col2:
 
 diam = st.number_input("Unesi promjer ili širinu [cm]:", value=5.0, min_value=1.0)
 height = st.number_input("Unesi visinu [cm]:", value=10.0, min_value=1.0)
+moisture = st.number_input("Unesi vlažnost [%]:", value=7.0, min_value=0.0, max_value=100.0)
 
 # Tabovi za zbijenost
 tabs = st.tabs(["Zbijenost 0.3", "Zbijenost 0.5", "Zbijenost 0.8"])
@@ -63,11 +64,13 @@ for i, tab in enumerate(tabs):
             shape=shape, diam=diam, height=height,
             soil_type=soil_type, density=dens
         )
+# 
         st.markdown(f"### 📊 Rezultati za zbijenost {dens}")
-        st.write(f"**Masa MsK (kg):** {MsK:.2f}")
-        st.write(f"**Masa MsS (kg):** {MsS:.2f}")
-        st.write(f"**Masa MsK + MsS:** {MsMx:.2f}")
-        st.write(f"**Zasićena masa (kg):** {Msat:.2f}")
+        st.write(f"**Masa MsK (g):** {MsK:.2f}")
+        st.write(f"**Masa MsS (g):** {MsS:.2f}")
+        st.write(f"**Masa MsK + MsS (g):** {MsMx:.2f}")
+        st.write(f"**Masa vlažnog uzorka (g):** {MsMx*(1+moisture/100):.2f}")
+        st.write(f"**Zasićena masa (g):** {Msat:.2f}")
 
         with st.expander("🔍 Pogledaj sve izračune"):
             st.dataframe(df.style.format({col: "{:.3f}" for col in df.select_dtypes(include=[float, int]).columns}))
