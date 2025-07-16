@@ -50,7 +50,7 @@ def preparation_volume(shape = "cylinder", diam = 5, height = 10,width=None,soil
 
 
     df_selected = df[df["Soil_type"] == soil_type]
-    return df_selected[["Soil_type", "MsK_mix", "MsS_mix", "Msat_mix"]]
+    return df_selected[["Soil_type", "MsK_mix","MsS_mix","Ms_mix","Msat_mix"]]
 
 
 # %%
