@@ -39,7 +39,7 @@ def preparation_volume(shape="cylinder", diam=5, height=10, soil_type="SK00", de
     df["Msat_mix"] = df["Ms_mix"] + df["V_voids"]
 
     row = df[df["Soil_type"] == soil_type].iloc[0]
-    return row["MsK_mix"], row["MsS_mix"], row["Msat_mix"], df
+    return row["MsK_mix"], row["MsS_mix"], row["Ms_mix"],row["Msat_mix"], df
 
 # --- UI kontrole ---
 
