@@ -39,7 +39,7 @@ def preparation_volume(shape="cylinder", diam=5, height=10, soil_type="SK00", de
     df["Msat_mix"] = df["Ms_mix"] + df["V_voids"]
 
     row = df[df["Soil_type"] == soil_type].iloc[0]
-    return row["MsK_mix"], row["MsS_mix"], row["Ms_mix"],row["Msat_mix"], df
+    return row["MsK_mix"], row["MsS_mix"],row["Ms_mix"] ,row["Msat_mix"], df
 
 # --- UI kontrole ---
 
@@ -59,13 +59,14 @@ zbijenosti = [0.3, 0.5, 0.8]
 for i, tab in enumerate(tabs):
     with tab:
         dens = zbijenosti[i]
-        MsK, MsS, Msat, df = preparation_volume(
+        MsK, MsS, MsMx ,Msat, df = preparation_volume(
             shape=shape, diam=diam, height=height,
             soil_type=soil_type, density=dens
         )
         st.markdown(f"### 📊 Rezultati za zbijenost {dens}")
         st.write(f"**Masa MsK (kg):** {MsK:.2f}")
         st.write(f"**Masa MsS (kg):** {MsS:.2f}")
+        st.write(f"**Masa MsK + MsS:** {MsMx:.2f}")
         st.write(f"**Zasićena masa (kg):** {Msat:.2f}")
 
         with st.expander("🔍 Pogledaj sve izračune"):
