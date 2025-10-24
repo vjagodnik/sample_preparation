@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import os
+import yagmail
 
 # === Popis opreme (pretvoren iz equipment.xlsx) ===
 data = [
