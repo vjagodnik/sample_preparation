@@ -3,8 +3,7 @@ import pandas as pd
 from datetime import datetime
 import os
 
-# === Učitaj Excel s popisom opreme ===
-# (pretpostavlja se da je datoteka Book1.xlsx u istom direktoriju kao ovaj kod)
+
 @st.cache_data
 def load_equipment():
     df = pd.read_excel("equipment.xlsx")
@@ -18,7 +17,7 @@ df = load_equipment()
 
 st.title("📘 Laboratorijski dnevnik - unos podataka")
 
-# === Odabir opreme iz cijelog popisa ===
+
 oprema = st.selectbox("Odaberi opremu", df["LG 1"].fillna("").tolist() + df["LG 2"].fillna("").tolist() +
                       df["LG 3"].fillna("").tolist() + df["LG 4"].fillna("").tolist() +
                       df["LG 5"].fillna("").tolist() + df["GF Ri"].fillna("").tolist())
@@ -32,16 +31,16 @@ for lab in ["LG 1", "LG 2", "LG 3", "LG 4", "LG 5", "GF Ri"]:
         odg_osoba = df.loc[mask, "Odg osoba"].values[0]
         break
 
-# === Materijal ===
+
 materijal = st.selectbox("Vrsta materijala", ["Glina", "Prah", "Pijesak", "Šljunak", "Stijena", "Ostalo"])
 
-# === Potreba ===
+
 potreba = st.selectbox(
     "Za koje potrebe se provodi ispitivanje",
     ["Nastava", "Završni rad", "Znanstveni rad", "Diplomski rad", "Doktorski rad", "Struka", "Ostalo"]
 )
 
-# === Vrijeme ispitivanja ===
+
 st.subheader("⏱️ Vrijeme ispitivanja")
 
 col1, col2 = st.columns(2)
@@ -65,7 +64,7 @@ else:
 opis = st.text_area("Kratki opis ispitivanja")
 podnositelj = st.text_input("Podnositelj")
 
-# === Generiraj zapis ===
+
 if st.button("Generiraj zapis"):
     zapis_dict = {
         "Inv no": inv_no,
@@ -83,7 +82,7 @@ if st.button("Generiraj zapis"):
     st.success("✅ Zapis generiran:")
     st.write(pd.DataFrame([zapis_dict]))
 
-    # === Dodaj u CSV ===
+
     csv_file = "lab_dnevnik.csv"
     if os.path.exists(csv_file):
         df_existing = pd.read_csv(csv_file)
