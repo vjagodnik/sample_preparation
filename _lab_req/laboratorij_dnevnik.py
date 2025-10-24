@@ -125,7 +125,6 @@ if st.button("Generiraj zapis"):
     zapis_dict = {
         "Inv no": inv_no,
         "Oprema": oprema,
-        "Odgovorna osoba": odg_osoba,
         "Materijal": materijal,
         "Potreba": potreba,
         "Datum od": datum_od.strftime("%Y-%m-%d"),
@@ -133,6 +132,8 @@ if st.button("Generiraj zapis"):
         "Sati korištenja": round(sati_koristenja, 2),
         "Opis": opis,
         "Podnositelj": podnositelj,
+        "Komentar": " ",
+        "Odgovorna osoba": odg_osoba,
     }
 
     st.success("✅ Zapis generiran:")
