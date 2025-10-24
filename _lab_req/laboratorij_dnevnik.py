@@ -151,3 +151,25 @@ if st.button("Generiraj zapis"):
         file_name="lab_dnevnik.tsv",
         mime="text/tab-separated-values"
     )
+# === Slanje e-maila (ako su tajne postavljene) ===
+if "email" in st.secrets:
+    if st.button("📧 Pošalji e-mail laboratoriju"):
+        try:
+            import yagmail
+
+            recipient = st.secrets["email"]["recipient"]
+            sender = st.secrets["email"]["sender"]
+            app_password = st.secrets["email"]["app_password"]
+
+            yag = yagmail.SMTP(sender, app_password)
+            yag.send(
+                to=recipient,
+                subject="Novi laboratorijski zapis",
+                contents="Pozdrav,\n\nU privitku se nalazi najnoviji laboratorijski zapis.\n\nLP,\nStreamlit aplikacija",
+                attachments="lab_dnevnik.csv",
+            )
+            st.success(f"📤 E-mail uspješno poslan na {recipient}")
+        except Exception as e:
+            st.error(f"⚠️ Greška pri slanju e-maila: {e}")
+else:
+    st.info("ℹ️ E-mail nije konfiguriran. Dodaj podatke u Streamlit Secrets.")
