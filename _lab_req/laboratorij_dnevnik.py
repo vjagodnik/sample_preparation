@@ -127,7 +127,7 @@ if "email" in st.secrets:
                 to=recipient,
                 subject=f"Laboratorijski zapis - {oprema}",
                 contents=f"Pozdrav,\n\nU privitku se nalazi laboratorijski zapis i Google Calendar događaj.\n\nLP,\nStreamlit aplikacija",
-                attachments=["lab_dnevnik.csv", "lab_dnevnik.ics"],
+                attachments=["lab_dnevnik.tsv", "lab_dnevnik.ics"],
             )
             st.success(f"📤 E-mail uspješno poslan na {recipient}")
         except Exception as e:
