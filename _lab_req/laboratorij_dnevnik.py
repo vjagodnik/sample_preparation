@@ -115,6 +115,8 @@ if "email" in st.secrets:
         else:
             try:
                 import os
+                import shutil
+
                 recipient = st.secrets["email"]["recipient"]
                 sender = st.secrets["email"]["sender"]
                 app_password = st.secrets["email"]["app_password"]
@@ -125,12 +127,12 @@ if "email" in st.secrets:
                 csv_path = os.path.abspath(st.session_state["csv_file"])
                 ics_path = os.path.abspath(st.session_state["ics_file"])
 
-                # 🔹 Pročitaj CSV u bytes i definiraj MIME kao "application/vnd.ms-excel"
-                csv_bytes = open(csv_path, "rb").read()
-                attachments = [
-                    (csv_bytes, os.path.basename(csv_path), "application/vnd.ms-excel"),
-                    ics_path,
-                ]
+                # 🔹 Napravi kopiju CSV-a s .xls ekstenzijom (zadržava tab-delimited sadržaj)
+                xls_path = csv_path.replace(".csv", ".xls")
+                shutil.copy(csv_path, xls_path)
+
+                # 🔹 Definiraj privitke (pravi putovi)
+                attachments = [xls_path, ics_path]
 
                 yag.send(
                     to=recipient,
@@ -151,7 +153,7 @@ Streamlit aplikacija""",
                 )
 
                 st.success(f"📤 E-mail uspješno poslan na {recipient}")
-                st.info("📎 Poslani privitci:\n- lab_dnevnik_zapis.csv\n- lab_dnevnik.ics")
+                st.info("📎 Poslani privitci:\n- lab_dnevnik_zapis.xls\n- lab_dnevnik.ics")
 
             except Exception as e:
                 st.error(f"⚠️ Greška pri slanju e-maila: {e}")
