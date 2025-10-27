@@ -142,6 +142,12 @@ if "email" in st.secrets:
                 tsv_path = os.path.abspath(st.session_state["tsv_file"])
                 ics_path = os.path.abspath(st.session_state["ics_file"])
 
+                # Pripremi privitke
+                attachments = [
+                    {"content": open(tsv_path, "rb").read(), "filename": os.path.basename(tsv_path)},
+                    ics_path,
+                ]
+
                 yag.send(
                     to=recipient,
                     subject=f"Laboratorijski zapis - {zapis['Oprema']}",
@@ -157,7 +163,7 @@ Vrijeme: {zapis['Datum od']} - {zapis['Datum do']}
 
 LP,
 Streamlit aplikacija""",
-                    attachments=[tsv_path, ics_path],
+                    attachments=attachments,
                 )
 
                 st.success(f"📤 E-mail uspješno poslan na {recipient}")
