@@ -85,29 +85,32 @@ if st.button("Generiraj zapis"):
     st.success("✅ Zapis generiran:")
     st.write(pd.DataFrame([zapis_dict]))
 
-    # Spremi TSV i ICS
+    # === Spremi CSV (tab-delimited, ali s .csv ekstenzijom) ===
     df_last = pd.DataFrame([zapis_dict])
-    tsv_named_path = os.path.abspath("lab_dnevnik_zapis.tsv")
-    df_last.to_csv(tsv_named_path, index=False, sep="\t", encoding="utf-8-sig")
+    csv_named_path = os.path.abspath("lab_dnevnik_zapis.csv")
+    df_last.to_csv(csv_named_path, index=False, sep="\t", encoding="utf-8-sig")
 
+    # === Generiraj .ics ===
     create_ics_file(zapis_dict)
+    ics_path = os.path.abspath("lab_dnevnik.ics")
 
-    # Pohrani za kasniju uporabu (email)
-    st.session_state["tsv_file"] = tsv_named_path
-    st.session_state["ics_file"] = "lab_dnevnik.ics"
+    # Spremi putanje i podatke u session_state
+    st.session_state["csv_file"] = csv_named_path
+    st.session_state["ics_file"] = ics_path
     st.session_state["zapis_dict"] = zapis_dict
 
+    # Gumb za preuzimanje CSV-a
     st.download_button(
-        label="⬇️ Preuzmi TSV datoteku (zadnji zapis)",
-        data=open(tsv_named_path, "rb").read(),
-        file_name="lab_dnevnik_zapis.tsv",
-        mime="text/tab-separated-values"
+        label="⬇️ Preuzmi CSV datoteku (zadnji zapis)",
+        data=open(csv_named_path, "rb").read(),
+        file_name="lab_dnevnik_zapis.csv",
+        mime="text/csv"
     )
 
 # === SLANJE E-MAILA ===
 if "email" in st.secrets:
     if st.button("📧 Pošalji e-mail laboratoriju"):
-        if "tsv_file" not in st.session_state or "ics_file" not in st.session_state:
+        if "csv_file" not in st.session_state or "ics_file" not in st.session_state:
             st.error("⚠️ Nema generiranog zapisa za slanje. Prvo klikni 'Generiraj zapis'.")
         else:
             try:
@@ -118,8 +121,9 @@ if "email" in st.secrets:
                 yag = yagmail.SMTP(sender, app_password)
                 zapis = st.session_state["zapis_dict"]
 
+                # === Privitci: CSV (tab-delimited) i ICS ===
                 attachments = [
-                    os.path.abspath(st.session_state["tsv_file"]),
+                    os.path.abspath(st.session_state["csv_file"]),
                     os.path.abspath(st.session_state["ics_file"]),
                 ]
 
@@ -142,7 +146,7 @@ Streamlit aplikacija""",
                 )
 
                 st.success(f"📤 E-mail uspješno poslan na {recipient}")
-                st.info("📎 Poslani privitci:\n- lab_dnevnik_zapis.tsv\n- lab_dnevnik.ics")
+                st.info("📎 Poslani privitci:\n- lab_dnevnik_zapis.csv\n- lab_dnevnik.ics")
 
             except Exception as e:
                 st.error(f"⚠️ Greška pri slanju e-maila: {e}")
