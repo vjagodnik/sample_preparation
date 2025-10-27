@@ -124,7 +124,6 @@ if st.button("Generiraj zapis"):
         file_name=tsv_file,
         mime="text/tab-separated-values"
     )
-
 # === Slanje e-maila (ako su tajne postavljene) ===
 if "email" in st.secrets:
     if st.button("📧 Pošalji e-mail laboratoriju"):
@@ -132,6 +131,7 @@ if "email" in st.secrets:
             st.error("⚠️ Nema generiranog zapisa za slanje. Prvo klikni 'Generiraj zapis'.")
         else:
             try:
+                import os
                 recipient = st.secrets["email"]["recipient"]
                 sender = st.secrets["email"]["sender"]
                 app_password = st.secrets["email"]["app_password"]
@@ -139,8 +139,8 @@ if "email" in st.secrets:
                 yag = yagmail.SMTP(sender, app_password)
 
                 zapis = st.session_state["zapis_dict"]
-                tsv_file = st.session_state["tsv_file"]
-                ics_file = st.session_state["ics_file"]
+                tsv_path = os.path.abspath(st.session_state["tsv_file"])
+                ics_path = os.path.abspath(st.session_state["ics_file"])
 
                 yag.send(
                     to=recipient,
@@ -157,10 +157,11 @@ Vrijeme: {zapis['Datum od']} - {zapis['Datum do']}
 
 LP,
 Streamlit aplikacija""",
-                    attachments=[tsv_file, ics_file],
+                    attachments=[tsv_path, ics_path],
                 )
 
                 st.success(f"📤 E-mail uspješno poslan na {recipient}")
+                st.info(f"📎 Poslani privitci:\n- {os.path.basename(tsv_path)}\n- {os.path.basename(ics_path)}")
             except Exception as e:
                 st.error(f"⚠️ Greška pri slanju e-maila: {e}")
 else:
