@@ -4,51 +4,42 @@ from datetime import datetime
 import os
 import yagmail
 
-# === Popis opreme (pretvoren iz equipment.xlsx) ===
-data = [
-    ["4294", "Uređaj za direktno smicanje A", "Martina Vivoda Prodan"],
-    ["4295", "Uređaj za direktno smicanje B", "Martina Vivoda Prodan"],
-    ["4296", "Uređaj za direktno smicanje C", "Martina Vivoda Prodan"],
-    ["4290", "Casagrandeov uređaj A", "Martina Vivoda Prodan"],
-    ["4291", "Casagrandeov uređaj B", "Martina Vivoda Prodan"],
-    ["4100", "Desikator", "Juraj Stella"],
-    ["4101", "Termometar", "Juraj Stella"],
-    ["4102", "Digitalna kupelj", "Juraj Stella"],
-    ["4293", "Treskalica sita", "Martina Vivoda Prodan"],
-    ["4298", "Uređaj za ispitivanje stišljivosti Edometar 1", "Martina Vivoda Prodan"],
-    ["4299", "Uređaj za ispitivanje stišljivosti Edometar 2", "Martina Vivoda Prodan"],
-    ["4300", "Uređaj za ispitivanje stišljivosti Edometar 3", "Martina Vivoda Prodan"],
-    ["4302", "Uređaj za zbijanje Proctor", "Martina Vivoda Prodan"],
-    ["4103", "Ručni izvlakač uzorka", "Juraj Stella"],
-    ["0", "Oprema za određivanje gustoće čestica, Controls", "Vedran Jagodnik"],
-    ["4104", "Džepni penetrometar, Controls", "Juraj Stella"],
-    ["4105", "Kartice za tlo Munsell, Controls", "Juraj Stella"],
-    ["4106", "Kartice za stijene Munsell, Controls", "Juraj Stella"],
-    ["4303", "Multispeed preša - CBR, Controls", "Vedran Jagodnik"],
-    # (ostatak popisa kao što već imaš)
-]
-
-df = pd.DataFrame(data, columns=["Inv no", "Oprema", "Odgovorna osoba"])
-
-# === Funkcija za kreiranje Google Calendar (.ics) datoteke ===
-def create_ics_file(zapis_dict):
-    try:
-        ics_content = f"""BEGIN:VCALENDAR
+# === FUNKCIJA ZA GENERIRANJE .ICS FAJLA ===
+def create_ics_file(zapis):
+    ics_content = f"""BEGIN:VCALENDAR
 VERSION:2.0
+PRODID:-//Laboratorij Geotehnika//Dnevnik//HR
 BEGIN:VEVENT
-SUMMARY:Ispitivanje - {zapis_dict['Oprema']}
-DTSTART:{datetime.strptime(zapis_dict['Datum od'], "%Y-%m-%d").strftime('%Y%m%dT090000')}
-DTEND:{datetime.strptime(zapis_dict['Datum do'], "%Y-%m-%d").strftime('%Y%m%dT170000')}
-DESCRIPTION:Podnositelj: {zapis_dict['Podnositelj']}\\nMaterijal: {zapis_dict['Materijal']}\\nPotreba: {zapis_dict['Potreba']}\\nOpis: {zapis_dict['Opis']}
+UID:{zapis['Inv no']}@lab.geotehnika.hr
+DTSTAMP:{datetime.now().strftime('%Y%m%dT%H%M%S')}
+DTSTART:{datetime.strptime(zapis['Datum od'], '%Y-%m-%d').strftime('%Y%m%dT090000')}
+DTEND:{datetime.strptime(zapis['Datum do'], '%Y-%m-%d').strftime('%Y%m%dT170000')}
+SUMMARY:{zapis['Oprema']} - {zapis['Podnositelj']}
+LOCATION:Laboratorij za geotehniku, Rijeka
+DESCRIPTION:Materijal: {zapis['Materijal']}\\nPotreba: {zapis['Potreba']}\\nOpis: {zapis['Opis']}
+BEGIN:VALARM
+TRIGGER:-PT30M
+ACTION:DISPLAY
+DESCRIPTION:Podsjetnik - Ispitivanje {zapis['Oprema']}
+END:VALARM
 END:VEVENT
 END:VCALENDAR
 """
-        with open("lab_dnevnik.ics", "w", encoding="utf-8") as f:
-            f.write(ics_content)
-    except Exception as e:
-        st.error(f"⚠️ Greška pri kreiranju .ics datoteke: {e}")
+    with open("lab_dnevnik.ics", "w", encoding="utf-8") as f:
+        f.write(ics_content)
 
-# === Streamlit sučelje ===
+
+# === POPIS OPREME (kraćena verzija za primjer) ===
+data = [
+    ["4294", "Uređaj za direktno smicanje A", "Martina Vivoda Prodan"],
+    ["4295", "Uređaj za direktno smicanje B", "Martina Vivoda Prodan"],
+    ["4302", "Uređaj za zbijanje Proctor", "Martina Vivoda Prodan"],
+    ["4556", "Uređaj za dinamičko troosno ispitivanje", "Vedran Jagodnik"],
+    ["4986", "Univerzalna preša za ispitivanje stijena", "Josip Peranić"],
+]
+df = pd.DataFrame(data, columns=["Inv no", "Oprema", "Odgovorna osoba"])
+
+# === APLIKACIJA ===
 st.title("📘 Laboratorijski dnevnik - unos podataka")
 
 oprema = st.selectbox("Odaberi opremu", df["Oprema"])
@@ -75,8 +66,7 @@ sati_koristenja = max((datum_do - datum_od).total_seconds() / 3600, 0)
 opis = st.text_area("Kratki opis ispitivanja")
 podnositelj = st.text_input("Podnositelj")
 
-# === Generiranje zapisa ===
-# === Generiranje zapisa ===
+# === GENERIRAJ ZAPIS ===
 if st.button("Generiraj zapis"):
     zapis_dict = {
         "Inv no": inv_no,
@@ -95,61 +85,43 @@ if st.button("Generiraj zapis"):
     st.success("✅ Zapis generiran:")
     st.write(pd.DataFrame([zapis_dict]))
 
-    # === Spremi CSV s akumuliranim zapisima ===
-    csv_file = "lab_dnevnik.csv"
-    if os.path.exists(csv_file):
-        df_existing = pd.read_csv(csv_file)
-        df_new = pd.concat([df_existing, pd.DataFrame([zapis_dict])], ignore_index=True)
-    else:
-        df_new = pd.DataFrame([zapis_dict])
-    df_new.to_csv(csv_file, index=False, encoding="utf-8-sig")
-
-    # === Spremi TSV i ICS samo za zadnji zapis ===
+    # Spremi TSV i ICS
     df_last = pd.DataFrame([zapis_dict])
-    tsv_file = "lab_dnevnik_posljednji.tsv"
-    df_last.to_csv(tsv_file, index=False, sep="\t", encoding="utf-8-sig")
+    tsv_named_path = os.path.abspath("lab_dnevnik_zapis.tsv")
+    df_last.to_csv(tsv_named_path, index=False, sep="\t", encoding="utf-8-sig")
 
-    ics_file = "lab_dnevnik.ics"
     create_ics_file(zapis_dict)
 
-    # Spremi imena datoteka u session_state da ih kasnije može koristiti e-mail dio
-    st.session_state["tsv_file"] = tsv_file
-    st.session_state["ics_file"] = ics_file
+    # Pohrani za kasniju uporabu (email)
+    st.session_state["tsv_file"] = tsv_named_path
+    st.session_state["ics_file"] = "lab_dnevnik.ics"
     st.session_state["zapis_dict"] = zapis_dict
 
-    # Gumb za preuzimanje TSV datoteke
     st.download_button(
         label="⬇️ Preuzmi TSV datoteku (zadnji zapis)",
-        data=open(tsv_file, "rb").read(),
-        file_name=tsv_file,
+        data=open(tsv_named_path, "rb").read(),
+        file_name="lab_dnevnik_zapis.tsv",
         mime="text/tab-separated-values"
     )
-# === Slanje e-maila (ako su tajne postavljene) ===
+
+# === SLANJE E-MAILA ===
 if "email" in st.secrets:
     if st.button("📧 Pošalji e-mail laboratoriju"):
         if "tsv_file" not in st.session_state or "ics_file" not in st.session_state:
             st.error("⚠️ Nema generiranog zapisa za slanje. Prvo klikni 'Generiraj zapis'.")
         else:
             try:
-                import os
-                import tempfile
                 recipient = st.secrets["email"]["recipient"]
                 sender = st.secrets["email"]["sender"]
                 app_password = st.secrets["email"]["app_password"]
 
                 yag = yagmail.SMTP(sender, app_password)
-
                 zapis = st.session_state["zapis_dict"]
-                tsv_path = os.path.abspath(st.session_state["tsv_file"])
-                ics_path = os.path.abspath(st.session_state["ics_file"])
 
-                # 🔹 napravi privremenu kopiju TSV-a da Gmail ga sigurno prepozna
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".tsv") as tmp_tsv:
-                    tmp_tsv.write(open(tsv_path, "rb").read())
-                    tmp_tsv_path = tmp_tsv.name
-
-                # 🔹 napravi listu privitaka s apsolutnim putanjama
-                attachments = [tmp_tsv_path, ics_path]
+                attachments = [
+                    os.path.abspath(st.session_state["tsv_file"]),
+                    os.path.abspath(st.session_state["ics_file"]),
+                ]
 
                 yag.send(
                     to=recipient,
@@ -170,7 +142,7 @@ Streamlit aplikacija""",
                 )
 
                 st.success(f"📤 E-mail uspješno poslan na {recipient}")
-                st.info(f"📎 Poslani privitci:\n- {os.path.basename(tmp_tsv_path)}\n- {os.path.basename(ics_path)}")
+                st.info("📎 Poslani privitci:\n- lab_dnevnik_zapis.tsv\n- lab_dnevnik.ics")
 
             except Exception as e:
                 st.error(f"⚠️ Greška pri slanju e-maila: {e}")
