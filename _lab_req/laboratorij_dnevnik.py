@@ -142,9 +142,9 @@ if "email" in st.secrets:
                 tsv_path = os.path.abspath(st.session_state["tsv_file"])
                 ics_path = os.path.abspath(st.session_state["ics_file"])
 
-                # Pripremi privitke
+                # ✅ Privitci: TSV (bytes) + ICS (file path)
                 attachments = [
-                    {"content": open(tsv_path, "rb").read(), "filename": os.path.basename(tsv_path)},
+                    (open(tsv_path, "rb").read(), os.path.basename(tsv_path)),
                     ics_path,
                 ]
 
