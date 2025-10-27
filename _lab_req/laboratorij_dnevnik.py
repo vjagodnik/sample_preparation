@@ -94,7 +94,7 @@ if st.button("Generiraj zapis"):
     st.success("✅ Zapis generiran:")
     st.write(pd.DataFrame([zapis_dict]))
 
-    # === Spremi CSV datoteku ===
+    # === Spremi CSV s akumuliranim zapisima ===
     csv_file = "lab_dnevnik.csv"
     if os.path.exists(csv_file):
         df_existing = pd.read_csv(csv_file)
@@ -103,16 +103,16 @@ if st.button("Generiraj zapis"):
         df_new = pd.DataFrame([zapis_dict])
     df_new.to_csv(csv_file, index=False, encoding="utf-8-sig")
 
-    # === Spremi TSV datoteku (za privitak i preuzimanje) ===
-    tsv_file = "lab_dnevnik.tsv"
-    df_new.to_csv(tsv_file, index=False, sep="\t", encoding="utf-8-sig")
+    # === TSV i ICS datoteke samo za zadnji zapis ===
+    df_last = pd.DataFrame([zapis_dict])
+    tsv_file = "lab_dnevnik_posljednji.tsv"
+    df_last.to_csv(tsv_file, index=False, sep="\t", encoding="utf-8-sig")
 
-    # === Kreiraj .ics datoteku za Google Calendar ===
+    ics_file = "lab_dnevnik.ics"
     create_ics_file(zapis_dict)
 
-    # === Gumb za preuzimanje TSV datoteke ===
     st.download_button(
-        label="⬇️ Preuzmi TSV datoteku",
+        label="⬇️ Preuzmi TSV datoteku (zadnji zapis)",
         data=open(tsv_file, "rb").read(),
         file_name=tsv_file,
         mime="text/tab-separated-values"
@@ -127,12 +127,26 @@ if "email" in st.secrets:
             app_password = st.secrets["email"]["app_password"]
 
             yag = yagmail.SMTP(sender, app_password)
+
+            # Pošalji samo zadnji zapis (TSV) + ICS
             yag.send(
                 to=recipient,
                 subject=f"Laboratorijski zapis - {oprema}",
-                contents=f"Pozdrav,\n\nU privitku se nalazi laboratorijski zapis (.tsv, .csv) i Google Calendar događaj (.ics).\n\nLP,\nStreamlit aplikacija",
-                attachments=["lab_dnevnik.csv", "lab_dnevnik.tsv", "lab_dnevnik.ics"],
+                contents=f"""Pozdrav,
+
+U privitku se nalazi zadnji laboratorijski zahtjev i događaj za Google Calendar.
+
+Podnositelj: {podnositelj}
+Oprema: {oprema}
+Materijal: {materijal}
+Potreba: {potreba}
+Vrijeme: {datum_od.strftime('%Y-%m-%d')} - {datum_do.strftime('%Y-%m-%d')}
+
+LP,
+Streamlit aplikacija""",
+                attachments=[tsv_file, ics_file],
             )
+
             st.success(f"📤 E-mail uspješno poslan na {recipient}")
         except Exception as e:
             st.error(f"⚠️ Greška pri slanju e-maila: {e}")
