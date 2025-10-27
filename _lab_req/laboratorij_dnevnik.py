@@ -114,6 +114,7 @@ if "email" in st.secrets:
             st.error("⚠️ Nema generiranog zapisa za slanje. Prvo klikni 'Generiraj zapis'.")
         else:
             try:
+                import os
                 recipient = st.secrets["email"]["recipient"]
                 sender = st.secrets["email"]["sender"]
                 app_password = st.secrets["email"]["app_password"]
@@ -121,10 +122,14 @@ if "email" in st.secrets:
                 yag = yagmail.SMTP(sender, app_password)
                 zapis = st.session_state["zapis_dict"]
 
-                # === Privitci: CSV (tab-delimited) i ICS ===
+                csv_path = os.path.abspath(st.session_state["csv_file"])
+                ics_path = os.path.abspath(st.session_state["ics_file"])
+
+                # 🔹 Pročitaj CSV u bytes i definiraj MIME kao "application/vnd.ms-excel"
+                csv_bytes = open(csv_path, "rb").read()
                 attachments = [
-                    os.path.abspath(st.session_state["csv_file"]),
-                    os.path.abspath(st.session_state["ics_file"]),
+                    (csv_bytes, os.path.basename(csv_path), "application/vnd.ms-excel"),
+                    ics_path,
                 ]
 
                 yag.send(
