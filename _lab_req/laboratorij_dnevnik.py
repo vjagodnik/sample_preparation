@@ -94,7 +94,7 @@ if st.button("Generiraj zapis"):
     st.success("✅ Zapis generiran:")
     st.write(pd.DataFrame([zapis_dict]))
 
-    # Spremi CSV
+    # === Spremi CSV datoteku ===
     csv_file = "lab_dnevnik.csv"
     if os.path.exists(csv_file):
         df_existing = pd.read_csv(csv_file)
@@ -103,14 +103,18 @@ if st.button("Generiraj zapis"):
         df_new = pd.DataFrame([zapis_dict])
     df_new.to_csv(csv_file, index=False, encoding="utf-8-sig")
 
-    # Kreiraj .ics datoteku
+    # === Spremi TSV datoteku (za privitak i preuzimanje) ===
+    tsv_file = "lab_dnevnik.tsv"
+    df_new.to_csv(tsv_file, index=False, sep="\t", encoding="utf-8-sig")
+
+    # === Kreiraj .ics datoteku za Google Calendar ===
     create_ics_file(zapis_dict)
 
-    # Gumb za preuzimanje
+    # === Gumb za preuzimanje TSV datoteke ===
     st.download_button(
-        label="⬇️ Preuzmi CSV (TSV format)",
-        data=df_new.to_csv(index=False, sep="\t").encode("utf-8-sig"),
-        file_name="lab_dnevnik.tsv",
+        label="⬇️ Preuzmi TSV datoteku",
+        data=open(tsv_file, "rb").read(),
+        file_name=tsv_file,
         mime="text/tab-separated-values"
     )
 
@@ -126,8 +130,8 @@ if "email" in st.secrets:
             yag.send(
                 to=recipient,
                 subject=f"Laboratorijski zapis - {oprema}",
-                contents=f"Pozdrav,\n\nU privitku se nalazi laboratorijski zapis i Google Calendar događaj.\n\nLP,\nStreamlit aplikacija",
-                attachments=["lab_dnevnik.tsv", "lab_dnevnik.ics"],
+                contents=f"Pozdrav,\n\nU privitku se nalazi laboratorijski zapis (.tsv, .csv) i Google Calendar događaj (.ics).\n\nLP,\nStreamlit aplikacija",
+                attachments=["lab_dnevnik.csv", "lab_dnevnik.tsv", "lab_dnevnik.ics"],
             )
             st.success(f"📤 E-mail uspješno poslan na {recipient}")
         except Exception as e:
