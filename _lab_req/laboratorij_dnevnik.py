@@ -76,6 +76,7 @@ opis = st.text_area("Kratki opis ispitivanja")
 podnositelj = st.text_input("Podnositelj")
 
 # === Generiranje zapisa ===
+# === Generiranje zapisa ===
 if st.button("Generiraj zapis"):
     zapis_dict = {
         "Inv no": inv_no,
@@ -103,7 +104,7 @@ if st.button("Generiraj zapis"):
         df_new = pd.DataFrame([zapis_dict])
     df_new.to_csv(csv_file, index=False, encoding="utf-8-sig")
 
-    # === TSV i ICS datoteke samo za zadnji zapis ===
+    # === Spremi TSV i ICS samo za zadnji zapis ===
     df_last = pd.DataFrame([zapis_dict])
     tsv_file = "lab_dnevnik_posljednji.tsv"
     df_last.to_csv(tsv_file, index=False, sep="\t", encoding="utf-8-sig")
@@ -111,6 +112,12 @@ if st.button("Generiraj zapis"):
     ics_file = "lab_dnevnik.ics"
     create_ics_file(zapis_dict)
 
+    # Spremi imena datoteka u session_state da ih kasnije može koristiti e-mail dio
+    st.session_state["tsv_file"] = tsv_file
+    st.session_state["ics_file"] = ics_file
+    st.session_state["zapis_dict"] = zapis_dict
+
+    # Gumb za preuzimanje TSV datoteke
     st.download_button(
         label="⬇️ Preuzmi TSV datoteku (zadnji zapis)",
         data=open(tsv_file, "rb").read(),
@@ -121,34 +128,40 @@ if st.button("Generiraj zapis"):
 # === Slanje e-maila (ako su tajne postavljene) ===
 if "email" in st.secrets:
     if st.button("📧 Pošalji e-mail laboratoriju"):
-        try:
-            recipient = st.secrets["email"]["recipient"]
-            sender = st.secrets["email"]["sender"]
-            app_password = st.secrets["email"]["app_password"]
+        if "tsv_file" not in st.session_state or "ics_file" not in st.session_state:
+            st.error("⚠️ Nema generiranog zapisa za slanje. Prvo klikni 'Generiraj zapis'.")
+        else:
+            try:
+                recipient = st.secrets["email"]["recipient"]
+                sender = st.secrets["email"]["sender"]
+                app_password = st.secrets["email"]["app_password"]
 
-            yag = yagmail.SMTP(sender, app_password)
+                yag = yagmail.SMTP(sender, app_password)
 
-            # Pošalji samo zadnji zapis (TSV) + ICS
-            yag.send(
-                to=recipient,
-                subject=f"Laboratorijski zapis - {oprema}",
-                contents=f"""Pozdrav,
+                zapis = st.session_state["zapis_dict"]
+                tsv_file = st.session_state["tsv_file"]
+                ics_file = st.session_state["ics_file"]
+
+                yag.send(
+                    to=recipient,
+                    subject=f"Laboratorijski zapis - {zapis['Oprema']}",
+                    contents=f"""Pozdrav,
 
 U privitku se nalazi zadnji laboratorijski zahtjev i događaj za Google Calendar.
 
-Podnositelj: {podnositelj}
-Oprema: {oprema}
-Materijal: {materijal}
-Potreba: {potreba}
-Vrijeme: {datum_od.strftime('%Y-%m-%d')} - {datum_do.strftime('%Y-%m-%d')}
+Podnositelj: {zapis['Podnositelj']}
+Oprema: {zapis['Oprema']}
+Materijal: {zapis['Materijal']}
+Potreba: {zapis['Potreba']}
+Vrijeme: {zapis['Datum od']} - {zapis['Datum do']}
 
 LP,
 Streamlit aplikacija""",
-                attachments=[tsv_file, ics_file],
-            )
+                    attachments=[tsv_file, ics_file],
+                )
 
-            st.success(f"📤 E-mail uspješno poslan na {recipient}")
-        except Exception as e:
-            st.error(f"⚠️ Greška pri slanju e-maila: {e}")
+                st.success(f"📤 E-mail uspješno poslan na {recipient}")
+            except Exception as e:
+                st.error(f"⚠️ Greška pri slanju e-maila: {e}")
 else:
     st.info("ℹ️ E-mail nije konfiguriran. Dodaj podatke u Streamlit Secrets.")
