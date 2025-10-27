@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime
 import os
 import yagmail
+from openpyxl import Workbook
 
 # === FUNKCIJA ZA GENERIRANJE .ICS FAJLA ===
 def create_ics_file(zapis):
@@ -85,37 +86,50 @@ if st.button("Generiraj zapis"):
     st.success("✅ Zapis generiran:")
     st.write(pd.DataFrame([zapis_dict]))
 
-    # === Spremi CSV (tab-delimited, ali s .csv ekstenzijom) ===
-    df_last = pd.DataFrame([zapis_dict])
+    # === Spremi i kao tab-delimited CSV (za čitanje)
     csv_named_path = os.path.abspath("lab_dnevnik_zapis.csv")
+    df_last = pd.DataFrame([zapis_dict])
     df_last.to_csv(csv_named_path, index=False, sep="\t", encoding="utf-8-sig")
+
+    # === Kreiraj i Excel (.xlsx) fajl s istim podacima ===
+    xlsx_path = os.path.abspath("lab_dnevnik_zapis.xlsx")
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Zapis"
+
+    # zaglavlja
+    ws.append(list(df_last.columns))
+    # podaci
+    for _, row in df_last.iterrows():
+        ws.append(list(row.values))
+
+    wb.save(xlsx_path)
 
     # === Generiraj .ics ===
     create_ics_file(zapis_dict)
     ics_path = os.path.abspath("lab_dnevnik.ics")
 
-    # Spremi putanje i podatke u session_state
-    st.session_state["csv_file"] = csv_named_path
+    # Pohrani u session_state
+    st.session_state["xlsx_file"] = xlsx_path
     st.session_state["ics_file"] = ics_path
     st.session_state["zapis_dict"] = zapis_dict
 
-    # Gumb za preuzimanje CSV-a
+    # Gumb za preuzimanje Excel datoteke
     st.download_button(
-        label="⬇️ Preuzmi CSV datoteku (zadnji zapis)",
-        data=open(csv_named_path, "rb").read(),
-        file_name="lab_dnevnik_zapis.csv",
-        mime="text/csv"
+        label="⬇️ Preuzmi Excel datoteku (zadnji zapis)",
+        data=open(xlsx_path, "rb").read(),
+        file_name="lab_dnevnik_zapis.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
 # === SLANJE E-MAILA ===
 if "email" in st.secrets:
     if st.button("📧 Pošalji e-mail laboratoriju"):
-        if "csv_file" not in st.session_state or "ics_file" not in st.session_state:
+        if "xlsx_file" not in st.session_state or "ics_file" not in st.session_state:
             st.error("⚠️ Nema generiranog zapisa za slanje. Prvo klikni 'Generiraj zapis'.")
         else:
             try:
                 import os
-                import shutil
 
                 recipient = st.secrets["email"]["recipient"]
                 sender = st.secrets["email"]["sender"]
@@ -124,15 +138,10 @@ if "email" in st.secrets:
                 yag = yagmail.SMTP(sender, app_password)
                 zapis = st.session_state["zapis_dict"]
 
-                csv_path = os.path.abspath(st.session_state["csv_file"])
+                xlsx_path = os.path.abspath(st.session_state["xlsx_file"])
                 ics_path = os.path.abspath(st.session_state["ics_file"])
 
-                # 🔹 Napravi kopiju CSV-a s .xls ekstenzijom (zadržava tab-delimited sadržaj)
-                xls_path = csv_path.replace(".csv", ".xls")
-                shutil.copy(csv_path, xls_path)
-
-                # 🔹 Definiraj privitke (pravi putovi)
-                attachments = [xls_path, ics_path]
+                attachments = [xlsx_path, ics_path]
 
                 yag.send(
                     to=recipient,
@@ -153,7 +162,7 @@ Streamlit aplikacija""",
                 )
 
                 st.success(f"📤 E-mail uspješno poslan na {recipient}")
-                st.info("📎 Poslani privitci:\n- lab_dnevnik_zapis.xls\n- lab_dnevnik.ics")
+                st.info("📎 Poslani privitci:\n- lab_dnevnik_zapis.xlsx\n- lab_dnevnik.ics")
 
             except Exception as e:
                 st.error(f"⚠️ Greška pri slanju e-maila: {e}")
