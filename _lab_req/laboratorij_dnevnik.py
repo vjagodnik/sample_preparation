@@ -132,6 +132,7 @@ if "email" in st.secrets:
         else:
             try:
                 import os
+                import tempfile
                 recipient = st.secrets["email"]["recipient"]
                 sender = st.secrets["email"]["sender"]
                 app_password = st.secrets["email"]["app_password"]
@@ -142,11 +143,13 @@ if "email" in st.secrets:
                 tsv_path = os.path.abspath(st.session_state["tsv_file"])
                 ics_path = os.path.abspath(st.session_state["ics_file"])
 
-                # ✅ Privitci: TSV (bytes) + ICS (file path)
-                attachments = [
-                    (open(tsv_path, "rb").read(), os.path.basename(tsv_path)),
-                    ics_path,
-                ]
+                # 🔹 napravi privremenu kopiju TSV-a da Gmail ga sigurno prepozna
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".tsv") as tmp_tsv:
+                    tmp_tsv.write(open(tsv_path, "rb").read())
+                    tmp_tsv_path = tmp_tsv.name
+
+                # 🔹 napravi listu privitaka s apsolutnim putanjama
+                attachments = [tmp_tsv_path, ics_path]
 
                 yag.send(
                     to=recipient,
@@ -167,7 +170,8 @@ Streamlit aplikacija""",
                 )
 
                 st.success(f"📤 E-mail uspješno poslan na {recipient}")
-                st.info(f"📎 Poslani privitci:\n- {os.path.basename(tsv_path)}\n- {os.path.basename(ics_path)}")
+                st.info(f"📎 Poslani privitci:\n- {os.path.basename(tmp_tsv_path)}\n- {os.path.basename(ics_path)}")
+
             except Exception as e:
                 st.error(f"⚠️ Greška pri slanju e-maila: {e}")
 else:
