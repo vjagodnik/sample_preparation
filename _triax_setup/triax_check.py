@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import time
 
-st.set_page_config(page_title="Triaxial Checklist v0.0.8", layout="wide")
+st.set_page_config(page_title="Triaxial Checklist v0.1.0", layout="wide")
 
 st.title("🧪 Triaxial Test Preparation")
 
@@ -19,6 +19,14 @@ if "last_values" not in st.session_state:
 def log_event(message):
     timestamp = time.strftime("%H:%M:%S")
     st.session_state.log.append(f"[{timestamp}] {message}")
+
+def log_input(key, value):
+    prev = st.session_state.last_values.get(key)
+    if prev is None:
+        st.session_state.last_values[key] = value
+    elif prev != value:
+        log_event(f"{key} → {value}")
+        st.session_state.last_values[key] = value
 
 def log_checkbox(key, value):
     prev = st.session_state.last_values.get(key)
@@ -53,13 +61,16 @@ def cp_check():
 
     line_open = st.checkbox("CP line OPEN", key="cp_line_open")
     zeroed = st.checkbox("CP transducer ZEROED ❗", key="cp_zeroed")
+    valves = st.checkbox('Wall panel valves "1-0-1"', key="cp_valves")
 
     log_checkbox("CP line open", line_open)
     log_checkbox("CP zeroed", zeroed)
+    log_checkbox("CP valves 1-0-1", valves)
 
     return {
         "line_open": line_open,
-        "zeroed": zeroed
+        "zeroed": zeroed,
+        "valves": valves
     }
 
 # -------------------------
@@ -108,25 +119,32 @@ with col2:
 st.write(f"### Step {st.session_state.step}")
 
 # -------------------------
-# STEP 1
+# STEP 1 (Sample ID added)
 # -------------------------
 if st.session_state.step == 1:
     st.header("Test Setup")
 
+    sample_id = st.text_input("Sample ID")
+    log_input("Sample ID", sample_id)
+    st.session_state.data["sample_id"] = sample_id
+
     st.session_state.data["test_type"] = st.selectbox(
         "Test Type", ["TRIAX", "DYNATRIAX", "CRS"]
     )
+    log_input("Test Type", st.session_state.data["test_type"])
 
     st.session_state.data["mode"] = st.selectbox(
         "Mode", ["Compression", "Extension", "Cyclic"]
     )
+    log_input("Mode", st.session_state.data["mode"])
 
     st.session_state.data["system"] = st.selectbox(
         "System", ["1", "2", "3", "Manual"]
     )
+    log_input("System", st.session_state.data["system"])
 
 # -------------------------
-# STEP 2
+# STEP 2 (Gs + e added)
 # -------------------------
 elif st.session_state.step == 2:
     st.header("Sample Preparation")
@@ -134,17 +152,29 @@ elif st.session_state.step == 2:
     st.session_state.data["diameter"] = st.selectbox(
         "Diameter", [38, 50, 70, 100]
     )
+    log_input("Diameter", st.session_state.data["diameter"])
 
     st.session_state.data["material"] = st.selectbox(
         "Material", ["Sand", "Clay", "Silt", "Gravel"]
     )
+    log_input("Material", st.session_state.data["material"])
+
+    # NEW
+    gs = st.number_input("Specific gravity Gs", value=2.65)
+    e = st.number_input("Void ratio e", value=0.6)
+
+    log_input("Gs", gs)
+    log_input("Void ratio e", e)
+
+    st.session_state.data["Gs"] = gs
+    st.session_state.data["e"] = e
 
     prep = st.selectbox(
         "Preparation Method",
         ["Undercompaction", "Wet Tamping", "Pluviation", "Dry"]
     )
-
     st.session_state.data["prep"] = prep
+    log_input("Preparation", prep)
 
     if prep == "Undercompaction":
         st.subheader("Undercompaction")
@@ -160,6 +190,9 @@ elif st.session_state.step == 2:
             Uni_option = st.radio("Undercompaction (%)", ["2%", "5%", "10%"])
             Uni = {"2%": 0.02, "5%": 0.05, "10%": 0.10}[Uni_option]
 
+        log_input("Mass", mass)
+        log_input("Height", h)
+
         if st.button("Calculate"):
             df, m_layer = undercompaction(mass, Uni, n, h)
 
@@ -170,6 +203,7 @@ elif st.session_state.step == 2:
 
             st.metric("Mass per layer", f"{m_layer:.2f} g")
             st.session_state.undercompaction_done = True
+            st.session_state.data["mass"] = mass
             log_event("Undercompaction calculated")
 
         if not st.session_state.undercompaction_done:
@@ -183,9 +217,10 @@ elif st.session_state.step == 3:
 
     method = st.radio("Method", ["BP", "CO2"])
     st.session_state.data["method"] = method
+    log_input("Method", method)
 
 # =====================================================
-# CO2 WORKFLOW
+# CO2 WORKFLOW (UNCHANGED + timer fix)
 # =====================================================
 elif st.session_state.data.get("method") == "CO2":
 
@@ -206,65 +241,44 @@ elif st.session_state.data.get("method") == "CO2":
     elif step == 6:
         st.header("Raise CP")
         st.session_state.data["cp_pressure"] = st.number_input("kPa", value=20)
+        log_input("CP pressure", st.session_state.data["cp_pressure"])
 
     elif step == 7:
         st.header("CO₂ Percolation")
 
         duration = 15 * 60
 
-        # -------------------------
-        # CHECKLIST
-        # -------------------------
         co2_closed_1 = st.checkbox("CO₂ line CLOSED")
         connected = st.checkbox("CO₂ connected behind sample")
         drain_open = st.checkbox("Drainage line OPEN ❗")
 
-        # -------------------------
-        # START
-        # -------------------------
         if st.button("Start CO₂ flush"):
             st.session_state.co2_start_time = time.time()
             st.session_state.co2_flush_done = False
             st.session_state.co2_interrupted = False
             log_event("CO₂ flush STARTED")
 
-        # -------------------------
-        # TIMER (BEZ rerun)
-        # -------------------------
         if st.session_state.co2_start_time:
 
             elapsed = time.time() - st.session_state.co2_start_time
             remaining = max(0, duration - elapsed)
 
-            progress = min(elapsed / duration, 1.0)
-            st.progress(progress)
-
+            st.progress(min(elapsed / duration, 1.0))
             mins = int(remaining // 60)
             secs = int(remaining % 60)
             st.write(f"Remaining: {mins:02d}:{secs:02d}")
 
-            # -------------------------
-            # INTERRUPT (SADA RADI)
-            # -------------------------
             if remaining > 0:
                 if st.button("⚠️ Interrupt CO₂ flush"):
                     st.session_state.co2_flush_done = True
                     st.session_state.co2_interrupted = True
                     log_event("CO₂ flush INTERRUPTED")
 
-            # -------------------------
-            # FINISH
-            # -------------------------
             if remaining <= 0:
                 st.session_state.co2_flush_done = True
                 log_event("CO₂ flush COMPLETED")
                 st.success("✅ CO₂ flush completed")
-            else:
-                st.warning("⏳ Running...")
 
-        # -------------------------
-        # POST-FLUSH
-        # -------------------------
         disabled = not st.session_state.co2_flush_done
 
         co2_closed_2 = st.checkbox(
@@ -274,9 +288,6 @@ elif st.session_state.data.get("method") == "CO2":
             "Drainage line CLOSED ❗", disabled=disabled
         )
 
-        # -------------------------
-        # SAVE + LOG
-        # -------------------------
         st.session_state.data["co2"] = {
             "co2_closed_1": co2_closed_1,
             "connected": connected,
@@ -318,7 +329,7 @@ elif st.session_state.data.get("method") == "CO2":
             log_checkbox(f"FINAL {k}", v)
 
 # =====================================================
-# BP WORKFLOW
+# BP WORKFLOW (UNCHANGED)
 # =====================================================
 elif st.session_state.data.get("method") == "BP":
 
@@ -331,7 +342,8 @@ elif st.session_state.data.get("method") == "BP":
             "bp_line_open": st.checkbox("BP line OPEN"),
             "flush_air": st.checkbox("Flush air ❗"),
             "zeroed": st.checkbox("BP transducer ZEROED ❗"),
-            "volume_set": st.checkbox("Volume set")
+            "volume_set": st.checkbox("Volume set"),
+            "valves": st.checkbox('Wall panel valves "1-0-1"')
         }
 
         for k, v in st.session_state.data["bp"].items():
