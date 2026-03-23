@@ -3,12 +3,12 @@ import pandas as pd
 import numpy as np
 import time
 
-st.set_page_config(page_title="Triaxial Checklist v0.0.7", layout="wide")
+st.set_page_config(page_title="Triaxial Checklist v0.0.8", layout="wide")
 
 st.title("🧪 Triaxial Test Preparation")
 
 # -------------------------
-# LOG SYSTEM (NEW)
+# LOG SYSTEM
 # -------------------------
 if "log" not in st.session_state:
     st.session_state.log = []
@@ -45,7 +45,6 @@ def undercompaction(mass_of_material, Uni, nT, hT):
     mass_per_layer = mass_of_material / nT
     return under, mass_per_layer
 
-
 # -------------------------
 # SHARED COMPONENTS
 # -------------------------
@@ -62,7 +61,6 @@ def cp_check():
         "line_open": line_open,
         "zeroed": zeroed
     }
-
 
 # -------------------------
 # SESSION INIT
@@ -81,6 +79,9 @@ if "co2_start_time" not in st.session_state:
 
 if "co2_flush_done" not in st.session_state:
     st.session_state.co2_flush_done = False
+
+if "co2_interrupted" not in st.session_state:
+    st.session_state.co2_interrupted = False
 
 # -------------------------
 # NEXT BUTTON LOGIC
@@ -209,44 +210,83 @@ elif st.session_state.data.get("method") == "CO2":
     elif step == 7:
         st.header("CO₂ Percolation")
 
-        st.session_state.data["co2"] = {
-            "co2_closed_1": st.checkbox("CO₂ line CLOSED"),
-            "connected": st.checkbox("CO₂ connected behind sample"),
-            "drain_open": st.checkbox("Drainage line OPEN ❗"),
-            "co2_closed_2": st.checkbox("CO₂ line CLOSED (after flow)"),
-            "drain_closed": st.checkbox("Drainage line CLOSED ❗")
-        }
-
-        # LOG checkbox changes
-        for k, v in st.session_state.data["co2"].items():
-            log_checkbox(f"CO2 {k}", v)
-
-        st.write("### CO₂ flush (15 min)")
-
         duration = 15 * 60
 
+        # -------------------------
+        # CHECKLIST
+        # -------------------------
+        co2_closed_1 = st.checkbox("CO₂ line CLOSED")
+        connected = st.checkbox("CO₂ connected behind sample")
+        drain_open = st.checkbox("Drainage line OPEN ❗")
+
+        # -------------------------
+        # START
+        # -------------------------
         if st.button("Start CO₂ flush"):
             st.session_state.co2_start_time = time.time()
             st.session_state.co2_flush_done = False
+            st.session_state.co2_interrupted = False
             log_event("CO₂ flush STARTED")
 
+        # -------------------------
+        # TIMER (BEZ rerun)
+        # -------------------------
         if st.session_state.co2_start_time:
+
             elapsed = time.time() - st.session_state.co2_start_time
             remaining = max(0, duration - elapsed)
 
-            st.progress(min(elapsed / duration, 1.0))
+            progress = min(elapsed / duration, 1.0)
+            st.progress(progress)
 
             mins = int(remaining // 60)
             secs = int(remaining % 60)
-
             st.write(f"Remaining: {mins:02d}:{secs:02d}")
 
+            # -------------------------
+            # INTERRUPT (SADA RADI)
+            # -------------------------
+            if remaining > 0:
+                if st.button("⚠️ Interrupt CO₂ flush"):
+                    st.session_state.co2_flush_done = True
+                    st.session_state.co2_interrupted = True
+                    log_event("CO₂ flush INTERRUPTED")
+
+            # -------------------------
+            # FINISH
+            # -------------------------
             if remaining <= 0:
                 st.session_state.co2_flush_done = True
                 log_event("CO₂ flush COMPLETED")
                 st.success("✅ CO₂ flush completed")
             else:
                 st.warning("⏳ Running...")
+
+        # -------------------------
+        # POST-FLUSH
+        # -------------------------
+        disabled = not st.session_state.co2_flush_done
+
+        co2_closed_2 = st.checkbox(
+            "CO₂ line CLOSED (after flow)", disabled=disabled
+        )
+        drain_closed = st.checkbox(
+            "Drainage line CLOSED ❗", disabled=disabled
+        )
+
+        # -------------------------
+        # SAVE + LOG
+        # -------------------------
+        st.session_state.data["co2"] = {
+            "co2_closed_1": co2_closed_1,
+            "connected": connected,
+            "drain_open": drain_open,
+            "co2_closed_2": co2_closed_2,
+            "drain_closed": drain_closed
+        }
+
+        for k, v in st.session_state.data["co2"].items():
+            log_checkbox(f"CO2 {k}", v)
 
         if not st.session_state.co2_flush_done:
             st.error("⛔ Cannot continue until flush is complete")
@@ -276,6 +316,60 @@ elif st.session_state.data.get("method") == "CO2":
 
         for k, v in st.session_state.data["final"].items():
             log_checkbox(f"FINAL {k}", v)
+
+# =====================================================
+# BP WORKFLOW
+# =====================================================
+elif st.session_state.data.get("method") == "BP":
+
+    step = st.session_state.step
+
+    if step == 4:
+        st.header("BP Setup")
+
+        st.session_state.data["bp"] = {
+            "bp_line_open": st.checkbox("BP line OPEN"),
+            "flush_air": st.checkbox("Flush air ❗"),
+            "zeroed": st.checkbox("BP transducer ZEROED ❗"),
+            "volume_set": st.checkbox("Volume set")
+        }
+
+        for k, v in st.session_state.data["bp"].items():
+            log_checkbox(f"BP {k}", v)
+
+    elif step == 5:
+        st.header("PWP Check")
+
+        st.session_state.data["pwp"] = {
+            "flushed": st.checkbox("Flushed ❗"),
+            "zeroed": st.checkbox("Zeroed ❗")
+        }
+
+        for k, v in st.session_state.data["pwp"].items():
+            log_checkbox(f"PWP {k}", v)
+
+    elif step == 6:
+        st.session_state.data["cp"] = cp_check()
+
+    elif step == 7:
+        st.header("Validation")
+
+        errors = []
+
+        if not st.session_state.data["bp"]["flush_air"]:
+            errors.append("BP flush")
+
+        if not st.session_state.data["cp"]["zeroed"]:
+            errors.append("CP")
+
+        if st.session_state.data.get("prep") == "Undercompaction":
+            if not st.session_state.undercompaction_done:
+                errors.append("Undercompaction")
+
+        if errors:
+            st.error(errors)
+        else:
+            st.success("✅ Ready")
 
 # -------------------------
 # LOG EXPORT
