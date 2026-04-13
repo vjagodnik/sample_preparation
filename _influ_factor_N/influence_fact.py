@@ -56,7 +56,7 @@ def influence_curve(m, n_array):
 # Plotting
 # --------------------------------------------------
 def plot_influence_line(m_value=1.0, n_value=1.0):
-    fig, ax = plt.subplots(figsize=(10, 8))
+    fig, ax = plt.subplots(figsize=(8, 6))
 
     # All reference curves in gray
     for m in mFact:
