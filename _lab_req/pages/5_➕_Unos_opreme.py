@@ -18,9 +18,10 @@ import streamlit as st
 
 import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from db import fetch, get_conn
+from db import fetch, get_conn, prikazi_verziju
 
 st.set_page_config(page_title="Unos opreme", page_icon="➕")
+prikazi_verziju()
 
 STATUSI = ["u_uporabi", "van_uporabe", "u_servisu", "rashodovana"]
 

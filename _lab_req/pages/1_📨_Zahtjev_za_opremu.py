@@ -6,9 +6,10 @@ import streamlit as st
 from openpyxl import Workbook
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from db import fetch, get_conn
+from db import fetch, get_conn, prikazi_verziju
 
 st.set_page_config(page_title="Zahtjev za opremu", page_icon="📨")
+prikazi_verziju()
 
 
 @st.cache_data(ttl=300)

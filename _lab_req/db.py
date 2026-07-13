@@ -1,6 +1,21 @@
-"""Zajednicko spajanje na Supabase — koriste ga sve stranice."""
+"""Zajednicko spajanje na Supabase + verzija aplikacije."""
 import streamlit as st
 import psycopg2
+
+# ---------------------------------------------------------------
+#  VERZIJA APLIKACIJE
+#  Format: glavna.manja.zakrpa
+#    zakrpa (1.0.X) -> popravak sitnice
+#    manja  (1.X.0) -> nova funkcija / stranica
+#    glavna (X.0.0) -> veca promjena strukture baze
+# ---------------------------------------------------------------
+VERZIJA = "1.1.0"
+DATUM_VERZIJE = "2026-07-13"
+
+
+def prikazi_verziju():
+    """Verzija u bocnoj traci — pozvati na svakoj stranici."""
+    st.sidebar.caption(f"Laboratorij · v{VERZIJA} · {DATUM_VERZIJE}")
 
 
 def get_conn():

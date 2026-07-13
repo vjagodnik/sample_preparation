@@ -5,9 +5,10 @@ from datetime import datetime
 import streamlit as st
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from db import fetch, execute
+from db import fetch, execute, prikazi_verziju
 
 st.set_page_config(page_title="Odobravanje", page_icon="✅")
+prikazi_verziju()
 
 
 def zahtjevi(status):
