@@ -16,9 +16,12 @@ STATUSI_KVARA = ["prijavljen", "u_popravku", "popravljen", "otpisan"]
 def otvoreni_kvarovi():
     return fetch("""
         SELECT k.id, o.id, o.naziv, o.interna_oznaka, o.status,
-               k.opis_kvara, k.hitnost, k.prijavio, k.datum_prijave, k.status
+               k.opis_kvara, k.hitnost, k.prijavio, k.datum_prijave, k.status,
+               coalesce(kmp.naziv, k.komponenta_opis) AS komponenta,
+               coalesce(kmp.serijski_broj, k.serijski_broj_dijela) AS serijski
         FROM kvarovi_opreme k
         JOIN oprema o ON o.id = k.oprema_id
+        LEFT JOIN komponente kmp ON kmp.id = k.komponenta_id
         WHERE k.status IN ('prijavljen','u_popravku')
         ORDER BY
             CASE k.hitnost WHEN 'visoka' THEN 1 WHEN 'srednja' THEN 2 ELSE 3 END,
@@ -73,9 +76,13 @@ else:
 BOJE = {"visoka": "🔴", "srednja": "🟡", "niska": "🟢"}
 
 for (kid, oid, naziv, inv, status_opreme, opis, hitnost,
-     prijavio, datum, status_kvara) in lista:
+     prijavio, datum, status_kvara, komponenta, serijski) in lista:
     with st.container(border=True):
         st.markdown(f"{BOJE.get(hitnost,'⚪')} **{naziv}**  ·  inv. {inv or '—'}")
+        if komponenta:
+            st.markdown(f"🔩 Komponenta: **{komponenta}**  ·  s/n **{serijski or '—'}**")
+        else:
+            st.caption("🔩 Kvar cijelog uredaja")
         c1, c2 = st.columns(2)
         c1.write(f"👤 Prijavio: **{prijavio or '—'}**")
         c1.write(f"⚠️ Hitnost: **{hitnost}**")
@@ -119,17 +126,20 @@ for (kid, oid, naziv, inv, status_opreme, opis, hitnost,
 st.divider()
 with st.expander("📜 Zatvoreni kvarovi"):
     povijest = fetch("""
-        SELECT k.id, o.naziv, k.hitnost, k.status, k.rjesenje, k.datum_rjesenja
+        SELECT k.id, o.naziv,
+               coalesce(kmp.naziv, k.komponenta_opis, 'cijeli uredaj') AS komponenta,
+               k.hitnost, k.status, k.rjesenje, k.datum_rjesenja
         FROM kvarovi_opreme k
         JOIN oprema o ON o.id = k.oprema_id
+        LEFT JOIN komponente kmp ON kmp.id = k.komponenta_id
         WHERE k.status IN ('popravljen','otpisan')
         ORDER BY k.datum_rjesenja DESC NULLS LAST
         LIMIT 20;""")
     if povijest:
         st.dataframe(
-            [{"#": r[0], "Oprema": r[1], "Hitnost": r[2], "Ishod": r[3],
-              "Rjesenje": r[4],
-              "Kada": (r[5].strftime("%Y-%m-%d %H:%M") if r[5] else "—")}
+            [{"#": r[0], "Oprema": r[1], "Komponenta": r[2], "Hitnost": r[3],
+              "Ishod": r[4], "Rjesenje": r[5],
+              "Kada": (r[6].strftime("%Y-%m-%d %H:%M") if r[6] else "—")}
              for r in povijest],
             use_container_width=True, hide_index=True)
     else:

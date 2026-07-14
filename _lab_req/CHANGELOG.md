@@ -10,6 +10,14 @@ Format: `glavna.manja.zakrpa`
 
 ---
 
+## 1.2.0 — 2026-07-14
+- **Prijava kvara po komponenti** — uz cijeli uređaj, može se prijaviti i pojedini dio
+  (volume controller, senzor, ćelija) sa **serijskim brojem**
+- Nova tablica **`komponente`** — samostalne, *nisu* fiksno vezane na uređaj
+  (jer se prenose među okvirima); registar **raste sam** pri prijavi kvara
+- Rješavanje kvarova prikazuje komponentu i serijski broj
+- E-mail obavijest o kvaru sadrži komponentu i s/n — spremno za upit servisu
+
 ## 1.1.0 — 2026-07-13
 - Sve forme spojene u **jednu aplikaciju** s izbornikom (jedan link)
 - Nova stranica **✅ Odobravanje** — odobri/odbij zahtjev, bilježi tko i kada

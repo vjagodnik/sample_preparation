@@ -9,8 +9,8 @@ import psycopg2
 #    manja  (1.X.0) -> nova funkcija / stranica
 #    glavna (X.0.0) -> veca promjena strukture baze
 # ---------------------------------------------------------------
-VERZIJA = "1.1.0"
-DATUM_VERZIJE = "2026-07-13"
+VERZIJA = "1.2.0"
+DATUM_VERZIJE = "2026-07-14"
 
 
 def prikazi_verziju():

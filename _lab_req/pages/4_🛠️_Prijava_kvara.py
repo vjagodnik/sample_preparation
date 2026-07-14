@@ -1,146 +1,207 @@
+"""Prijava kvara — cijeli uredaj ILI komponenta (volume controller, senzor...).
+
+Komponente su SAMOSTALNE (prenosive medu okvirima), pa se ne vezu fiksno na uredaj.
+Registar komponenti raste sam: kad prijavis novu, zapamti se za sljedeci put.
 """
-Prijava kvara opreme — Streamlit forma spojena na Supabase.
-
-Brza prijava: koji uredaj, sto ne radi, tko prijavljuje, hitnost.
-Upisuje u kvarovi_opreme; po zelji stavlja uredaj 'u_servisu' (pa se vise
-ne nudi u zahtjev-formi). Opcionalno salje mail voditelju i laborantu.
-
-Secrets: [supabase] (obavezno), [email] (opcionalno).
-"""
-
+import os, sys
 from datetime import datetime
 
 import streamlit as st
 
-import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db import fetch, get_conn, prikazi_verziju
 
-st.set_page_config(page_title="Prijava kvara opreme", page_icon="🛠️")
+st.set_page_config(page_title="Prijava kvara", page_icon="🛠️")
 prikazi_verziju()
+
+CIJELI = "— Cijeli uredaj —"
+NOVA = "➕ Nova komponenta (upisi)"
 
 
 @st.cache_data(ttl=120)
 def ucitaj_opremu():
-    return fetch(
-        "SELECT id, interna_oznaka, naziv, status FROM oprema ORDER BY naziv;"
-    )
+    return fetch("SELECT id, interna_oznaka, naziv, status FROM oprema ORDER BY naziv;")
+
+
+@st.cache_data(ttl=60)
+def ucitaj_komponente():
+    return fetch("""SELECT id, naziv, serijski_broj, proizvodjac
+                    FROM komponente WHERE aktivna = TRUE
+                    ORDER BY naziv, serijski_broj;""")
 
 
 @st.cache_data(ttl=120)
 def ucitaj_osoblje():
     return [r[0] for r in fetch(
-        "SELECT ime_prezime FROM osoblje WHERE aktivan = TRUE ORDER BY ime_prezime;"
-    )]
+        "SELECT ime_prezime FROM osoblje WHERE aktivan = TRUE ORDER BY ime_prezime;")]
 
 
-def prijavi_kvar(oprema_id, opis, hitnost, prijavio, van_uporabe):
+def prijavi(oprema_id, opis, hitnost, prijavio, van_uporabe,
+            komp_id, komp_naziv, komp_sn, komp_proiz, nova_komponenta):
+    """Sve u jednoj transakciji: (nova komponenta) -> kvar -> (oprema u servis)."""
     conn = get_conn()
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                """INSERT INTO kvarovi_opreme
-                   (oprema_id, opis_kvara, hitnost, prijavio, stavljen_van_uporabe)
-                   VALUES (%s,%s,%s,%s,%s);""",
-                (oprema_id, opis, hitnost, prijavio, van_uporabe),
-            )
+            # nova komponenta -> upisi u registar (ili nadi postojecu istu)
+            if nova_komponenta and komp_naziv:
+                cur.execute("""SELECT id FROM komponente
+                               WHERE naziv = %s AND coalesce(serijski_broj,'') = coalesce(%s,'');""",
+                            (komp_naziv, komp_sn))
+                red = cur.fetchone()
+                if red:
+                    komp_id = red[0]
+                else:
+                    cur.execute("""INSERT INTO komponente (naziv, serijski_broj, proizvodjac)
+                                   VALUES (%s,%s,%s) RETURNING id;""",
+                                (komp_naziv, komp_sn or None, komp_proiz or None))
+                    komp_id = cur.fetchone()[0]
+
+            cur.execute("""INSERT INTO kvarovi_opreme
+                           (oprema_id, opis_kvara, hitnost, prijavio, stavljen_van_uporabe,
+                            komponenta_id, komponenta_opis, serijski_broj_dijela)
+                           VALUES (%s,%s,%s,%s,%s,%s,%s,%s);""",
+                        (oprema_id, opis, hitnost, prijavio, van_uporabe,
+                         komp_id, komp_naziv or None, komp_sn or None))
+
             if van_uporabe:
-                cur.execute(
-                    "UPDATE oprema SET status = 'u_servisu' WHERE id = %s;",
-                    (oprema_id,),
-                )
+                cur.execute("UPDATE oprema SET status = 'u_servisu' WHERE id = %s;",
+                            (oprema_id,))
         conn.commit()
     finally:
         conn.close()
 
 
 # ---------------------------- SUCELJE ----------------------------
-st.title("🛠️ Prijava kvara opreme")
-st.caption("Brza prijava kvara. Po zelji stavlja uredaj u servis.")
+st.title("🛠️ Prijava kvara")
+st.caption("Prijavi kvar cijelog uredaja ili pojedine komponente.")
 
 try:
     oprema_rows = ucitaj_opremu()
+    komponente = ucitaj_komponente()
     osobe = ucitaj_osoblje()
 except Exception as e:
-    st.error("Ne mogu se spojiti na bazu. Provjeri Secrets ([supabase]).")
-    st.caption(f"Detalj: {e}")
-    st.stop()
+    st.error("Nema veze s bazom."); st.caption(f"Detalj: {e}"); st.stop()
 
 if not oprema_rows:
-    st.warning("U bazi nema opreme.")
-    st.stop()
+    st.warning("U bazi nema opreme."); st.stop()
 
-labele = [f"{naziv}  ·  inv. {inv or '—'}  ·  {status or ''}"
-          for (_id, inv, naziv, status) in oprema_rows]
-i = st.selectbox("Uredaj u kvaru", range(len(labele)), format_func=lambda i: labele[i])
-_id, inv_br, naziv_opreme, trenutni_status = oprema_rows[i]
+# 1) Uredaj / sustav
+labele = [f"{n}  ·  inv. {i or '—'}  ·  {s or ''}" for (_id, i, n, s) in oprema_rows]
+idx = st.selectbox("Uredaj / sustav", range(len(labele)), format_func=lambda i: labele[i],
+                   help="Uz koji je uredaj komponenta bila u trenutku kvara.")
+oid, inv_br, naziv_opreme, status_opreme = oprema_rows[idx]
 
-opis = st.text_area("Opis kvara *", placeholder="Sto tocno ne radi / sto se dogodilo?")
+# 2) Sto je u kvaru — cijeli uredaj ili komponenta
+st.subheader("Sto je u kvaru?")
+komp_labele = [CIJELI] + [
+    f"{n}  ·  s/n {sn or '—'}" + (f"  ·  {p}" if p else "")
+    for (_id, n, sn, p) in komponente
+] + [NOVA]
+
+ki = st.selectbox("Komponenta", range(len(komp_labele)),
+                  format_func=lambda i: komp_labele[i])
+izbor = komp_labele[ki]
+
+komp_id = None
+komp_naziv = komp_sn = komp_proiz = None
+nova_komponenta = False
+
+if izbor == CIJELI:
+    st.caption("Prijavljuje se kvar cijelog uredaja.")
+elif izbor == NOVA:
+    nova_komponenta = True
+    st.info("Nova komponenta ce se zapamtiti u registru za sljedeci put.")
+    k1, k2 = st.columns(2)
+    with k1:
+        komp_naziv = st.text_input("Naziv komponente *",
+                                   placeholder="npr. Volume controller (cell pressure)")
+    with k2:
+        komp_sn = st.text_input("Serijski broj", placeholder="npr. GDS-12345")
+    komp_proiz = st.text_input("Proizvodjac", placeholder="npr. GDS Instruments")
+else:
+    # postojeca komponenta iz registra
+    komp = komponente[ki - 1]  # -1 zbog CIJELI na pocetku
+    komp_id, komp_naziv, komp_sn, komp_proiz = komp
+    st.success(f"Komponenta: **{komp_naziv}**  ·  s/n **{komp_sn or '—'}**"
+               + (f"  ·  {komp_proiz}" if komp_proiz else ""))
+
+# 3) Kvar
+st.subheader("Opis kvara")
+opis = st.text_area("Sto ne radi? *", placeholder="Sto se tocno dogodilo / kako se ocituje?")
 hitnost = st.selectbox("Hitnost", ["niska", "srednja", "visoka"], index=1)
 
 prijavio = st.selectbox("Prijavljuje", osobe + ["Ostalo (upisi)"])
 if prijavio == "Ostalo (upisi)":
     prijavio = st.text_input("Ime")
 
-van_uporabe = st.checkbox("Odmah staviti uredaj VAN UPOTREBE (u servis)", value=True,
-                          help="Ako je oznaceno, uredaj se vise nece nuditi za koristenje "
-                               "dok se kvar ne rijesi.")
+van_uporabe = st.checkbox("Staviti UREDAJ van upotrebe (u servis)", value=True,
+                          help="Ako je u kvaru samo komponenta koja se moze zamijeniti, "
+                               "mozes ostaviti uredaj u upotrebi.")
 
 st.divider()
 if st.button("🛠️ Prijavi kvar", type="primary"):
+    greske = []
     if not opis.strip():
-        st.error("Upisi opis kvara.")
-    elif not prijavio:
-        st.error("Upisi tko prijavljuje.")
+        greske.append("Upisi opis kvara.")
+    if not prijavio:
+        greske.append("Upisi tko prijavljuje.")
+    if nova_komponenta and not (komp_naziv or "").strip():
+        greske.append("Upisi naziv nove komponente.")
+
+    if greske:
+        for g in greske:
+            st.error(g)
     else:
         try:
-            prijavi_kvar(_id, opis.strip(), hitnost, prijavio, van_uporabe)
+            prijavi(oid, opis.strip(), hitnost, prijavio, van_uporabe,
+                    komp_id, (komp_naziv or "").strip() or None,
+                    (komp_sn or "").strip() or None,
+                    (komp_proiz or "").strip() or None, nova_komponenta)
+
             st.session_state["kvar"] = {
-                "Oprema": naziv_opreme, "Inv": inv_br or "",
-                "Opis": opis.strip(), "Hitnost": hitnost,
-                "Prijavio": prijavio,
+                "Uredaj": naziv_opreme, "Inv": inv_br or "",
+                "Komponenta": komp_naziv or "cijeli uredaj",
+                "Serijski broj": komp_sn or "—",
+                "Opis": opis.strip(), "Hitnost": hitnost, "Prijavio": prijavio,
                 "Van upotrebe": "DA" if van_uporabe else "NE",
                 "Datum": datetime.now().strftime("%Y-%m-%d %H:%M"),
             }
             st.success("✅ Kvar je prijavljen.")
             if van_uporabe:
-                st.warning(f"Uredaj '{naziv_opreme}' je stavljen u servis "
-                           f"(vise se ne nudi za koristenje).")
+                st.warning(f"'{naziv_opreme}' je stavljen u servis.")
+            if nova_komponenta:
+                st.info("Komponenta je dodana u registar.")
             st.balloons()
             st.cache_data.clear()
         except Exception as e:
-            st.error(f"Greska pri spremanju: {e}")
+            st.error(f"Greska: {e}")
 
-# --- Opcionalna e-mail obavijest ---
+# --- E-mail (zgodno za slanje upita servisu) ---
 st.divider()
-st.subheader("📧 Obavijest e-mailom")
+st.subheader("📧 Obavijest / upit za popravak")
 if "email" not in st.secrets:
-    st.info("E-mail nije konfiguriran (dodaj [email] u Secrets).")
+    st.info("E-mail nije konfiguriran.")
 elif "kvar" not in st.session_state:
-    st.caption("Prvo prijavi kvar, pa mozes poslati obavijest.")
+    st.caption("Prvo prijavi kvar.")
 else:
-    if st.button("📧 Posalji obavijest voditelju i laborantu"):
+    if st.button("📧 Posalji e-mail"):
         try:
             import yagmail
             k = st.session_state["kvar"]
-            sender = st.secrets["email"]["sender"]
-            app_password = st.secrets["email"]["app_password"]
-            recipients = list(st.secrets["email"]["recipients"])
-            yag = yagmail.SMTP(sender, app_password)
-            yag.send(
-                to=recipients,
-                subject=f"KVAR opreme ({k['Hitnost']}): {k['Oprema']}",
-                contents=(
-                    "Pozdrav,\n\nPrijavljen je kvar opreme.\n\n"
-                    f"Uredaj: {k['Oprema']} (inv. {k['Inv']})\n"
-                    f"Hitnost: {k['Hitnost']}\n"
-                    f"Stavljen van upotrebe: {k['Van upotrebe']}\n"
-                    f"Prijavio: {k['Prijavio']} ({k['Datum']})\n\n"
-                    f"Opis: {k['Opis']}\n\n"
-                    "Status pratite u NocoDB-u (tablica kvarovi_opreme).\n\n"
-                    "— Automatska obavijest"
-                ),
-            )
-            st.success(f"📤 Obavijest poslana na: {', '.join(recipients)}")
+            rec = list(st.secrets["email"]["recipients"])
+            yag = yagmail.SMTP(st.secrets["email"]["sender"],
+                               st.secrets["email"]["app_password"])
+            yag.send(to=rec,
+                     subject=f"KVAR ({k['Hitnost']}): {k['Uredaj']} — {k['Komponenta']}",
+                     contents=(
+                         "Prijavljen je kvar.\n\n"
+                         f"Uredaj: {k['Uredaj']} (inv. {k['Inv']})\n"
+                         f"Komponenta: {k['Komponenta']}\n"
+                         f"Serijski broj: {k['Serijski broj']}\n"
+                         f"Hitnost: {k['Hitnost']}\n"
+                         f"Van upotrebe: {k['Van upotrebe']}\n"
+                         f"Prijavio: {k['Prijavio']} ({k['Datum']})\n\n"
+                         f"Opis kvara:\n{k['Opis']}\n"))
+            st.success(f"📤 Poslano na: {', '.join(rec)}")
         except Exception as e:
-            st.error(f"Greska pri slanju e-maila: {e}")
+            st.error(f"Greska pri slanju: {e}")
