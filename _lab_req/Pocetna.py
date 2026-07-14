@@ -59,13 +59,16 @@ st.markdown(
     """
 **Stranice (izbornik lijevo):**
 
-| Stranica | Cemu sluzi |
-|---|---|
-| 📨 Zahtjev za opremu | podnosenje zahtjeva za koristenje uredaja |
-| ✅ Odobravanje | voditelj/laborant odobrava ili odbija zahtjeve |
-| 📥 Prijem uzorka | zaprimanje uzorka (projekt/klijent po potrebi u letu) |
-| 🛠️ Prijava kvara | brza prijava kvara, uredaj ide u servis |
-| ➕ Unos opreme | dodavanje novog uredaja u inventar |
-| 🔧 Rjesavanje kvarova | zatvori kvar i vrati uredaj u upotrebu |
+| Stranica | Cemu sluzi | Pristup |
+|---|---|---|
+| 📨 Zahtjev za opremu | podnosenje zahtjeva za koristenje uredaja | 🌐 svi |
+| 🛠️ Prijava kvara | prijava kvara uredaja ili komponente | 🌐 svi |
+| ✅ Odobravanje | odobravanje / odbijanje zahtjeva | 🔒 prijava |
+| 📥 Prijem uzorka | zaprimanje uzorka | 🔒 prijava |
+| ➕ Unos opreme | dodavanje uredaja u inventar | 🔒 prijava |
+| 🔧 Rjesavanje kvarova | zatvaranje kvara, povratak u upotrebu | 🔒 prijava |
 """
 )
+
+st.caption("🔒 = potrebna prijava (voditelj / laborant).  "
+           "🌐 = dostupno svima s linkom.")

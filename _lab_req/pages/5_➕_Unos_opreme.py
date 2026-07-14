@@ -19,9 +19,13 @@ import streamlit as st
 import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db import fetch, get_conn, prikazi_verziju
+from auth import trazi_prijavu
 
 st.set_page_config(page_title="Unos opreme", page_icon="➕")
 prikazi_verziju()
+
+# 🔒 samo voditelj/laborant
+tko = trazi_prijavu("Unos opreme")
 
 STATUSI = ["u_uporabi", "van_uporabe", "u_servisu", "rashodovana"]
 

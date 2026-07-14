@@ -10,6 +10,14 @@ Format: `glavna.manja.zakrpa`
 
 ---
 
+## 1.4.0 — 2026-07-14
+- **Pristup po ulogama** — administrativne stranice (Odobravanje, Prijem uzorka,
+  Unos opreme, Rješavanje kvarova) traže **prijavu imenom i lozinkom**
+- **Zahtjev za opremu** i **Prijava kvara** ostaju **otvoreni svima** s linkom
+- Svaka ovlaštena osoba ima **svoju lozinku** (u Secrets, blok `[pristup]`) —
+  app zna tko je prijavljen, pa se `odobrio` upisuje **automatski** (nema biranja imena)
+- Katalog **48 normi/metoda** unesen u bazu (45 laboratorijskih, 3 terenske)
+
 ## 1.3.0 — 2026-07-14
 - **Sustav i dalje radi?** — pri prijavi kvara komponente bira se može li se sustav
   koristiti (npr. VC ch14 u kvaru, ali radi s VC ch15). Uređaj ide u servis **samo**

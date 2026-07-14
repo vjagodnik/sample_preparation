@@ -6,9 +6,13 @@ import streamlit as st
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db import fetch, get_conn, prikazi_verziju, sada, lokalno
+from auth import trazi_prijavu
 
 st.set_page_config(page_title="Rjesavanje kvarova", page_icon="🔧")
 prikazi_verziju()
+
+# 🔒 samo voditelj/laborant
+tko = trazi_prijavu("Rjesavanje kvarova")
 
 STATUSI_KVARA = ["prijavljen", "u_popravku", "popravljen", "otpisan"]
 

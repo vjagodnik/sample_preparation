@@ -29,7 +29,14 @@ password = "LOZINKA"
 sender = "posiljatelj@gmail.com"
 app_password = "GOOGLE-APP-PASSWORD"
 recipients = ["voditelj@...", "laborant@..."]
+
+[pristup]                     # OBAVEZNO za admin stranice
+"Vedran Jagodnik" = "lozinka-voditelja"
+"Juraj Stella"    = "lozinka-laboranta"
 ```
+
+**Ime u `[pristup]` mora biti TOČNO kao u tablici `osoblje`** — po njemu se bilježi
+tko je odobrio/riješio. Dodavanje ili uklanjanje osobe = uređivanje Secrets (bez diranja koda).
 
 ## Verzija
 Postavlja se u `db.py` (`VERZIJA`). Vidi `CHANGELOG.md`.

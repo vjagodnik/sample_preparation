@@ -6,9 +6,13 @@ import streamlit as st
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db import fetch, execute, prikazi_verziju, sada, lokalno
+from auth import trazi_prijavu
 
 st.set_page_config(page_title="Odobravanje", page_icon="✅")
 prikazi_verziju()
+
+# 🔒 samo voditelj/laborant
+tko = trazi_prijavu("Odobravanje")
 
 
 def zahtjevi(status):
@@ -35,14 +39,7 @@ def odluci(zid, novi_status, tko):
 
 st.title("✅ Odobravanje zahtjeva")
 
-try:
-    osobe = osoblje()
-except Exception as e:
-    st.error("Nema veze s bazom."); st.caption(f"Detalj: {e}"); st.stop()
-
-tko = st.selectbox("Odobrava (tko si ti)", osobe,
-                   help="Ime se biljezi uz odluku — radi sljedivosti.")
-
+st.caption(f"Odluke se biljeze na ime: **{tko}**")
 st.divider()
 lista = zahtjevi("na_cekanju")
 

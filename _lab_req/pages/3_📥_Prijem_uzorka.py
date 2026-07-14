@@ -15,9 +15,13 @@ import streamlit as st
 import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db import fetch, get_conn, prikazi_verziju, sada
+from auth import trazi_prijavu
 
 st.set_page_config(page_title="Prijem uzorka", page_icon="📥")
 prikazi_verziju()
+
+# 🔒 samo voditelj/laborant
+tko = trazi_prijavu("Prijem uzorka")
 
 
 @st.cache_data(ttl=120)
