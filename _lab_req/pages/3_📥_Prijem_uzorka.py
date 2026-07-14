@@ -14,7 +14,7 @@ import streamlit as st
 
 import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from db import fetch, get_conn, prikazi_verziju
+from db import fetch, get_conn, prikazi_verziju, sada
 
 st.set_page_config(page_title="Prijem uzorka", page_icon="📥")
 prikazi_verziju()
@@ -38,7 +38,7 @@ def ucitaj_osoblje():
 
 
 def predlozi_oznaku():
-    god = datetime.now().year
+    god = sada().year
     try:
         n = (fetch("SELECT count(*) FROM uzorci;")[0][0] or 0) + 1
     except Exception:

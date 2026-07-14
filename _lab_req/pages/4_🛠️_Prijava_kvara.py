@@ -9,7 +9,7 @@ from datetime import datetime
 import streamlit as st
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from db import fetch, get_conn, prikazi_verziju
+from db import fetch, get_conn, prikazi_verziju, sada
 
 st.set_page_config(page_title="Prijava kvara", page_icon="🛠️")
 prikazi_verziju()
@@ -36,7 +36,7 @@ def ucitaj_osoblje():
         "SELECT ime_prezime FROM osoblje WHERE aktivan = TRUE ORDER BY ime_prezime;")]
 
 
-def prijavi(oprema_id, opis, hitnost, prijavio, van_uporabe,
+def prijavi(oprema_id, opis, hitnost, prijavio, sustav_ok, zamijenjeno,
             komp_id, komp_naziv, komp_sn, komp_proiz, nova_komponenta):
     """Sve u jednoj transakciji: (nova komponenta) -> kvar -> (oprema u servis)."""
     conn = get_conn()
@@ -57,13 +57,16 @@ def prijavi(oprema_id, opis, hitnost, prijavio, van_uporabe,
                     komp_id = cur.fetchone()[0]
 
             cur.execute("""INSERT INTO kvarovi_opreme
-                           (oprema_id, opis_kvara, hitnost, prijavio, stavljen_van_uporabe,
+                           (oprema_id, opis_kvara, hitnost, prijavio, datum_prijave,
+                            stavljen_van_uporabe, sustav_upotrebljiv, zamijenjeno_s,
                             komponenta_id, komponenta_opis, serijski_broj_dijela)
-                           VALUES (%s,%s,%s,%s,%s,%s,%s,%s);""",
-                        (oprema_id, opis, hitnost, prijavio, van_uporabe,
+                           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s);""",
+                        (oprema_id, opis, hitnost, prijavio, sada(),
+                         (not sustav_ok), sustav_ok, zamijenjeno or None,
                          komp_id, komp_naziv or None, komp_sn or None))
 
-            if van_uporabe:
+            # uredaj ide u servis SAMO ako sustav nije upotrebljiv
+            if not sustav_ok:
                 cur.execute("UPDATE oprema SET status = 'u_servisu' WHERE id = %s;",
                             (oprema_id,))
         conn.commit()
@@ -134,9 +137,24 @@ prijavio = st.selectbox("Prijavljuje", osobe + ["Ostalo (upisi)"])
 if prijavio == "Ostalo (upisi)":
     prijavio = st.text_input("Ime")
 
-van_uporabe = st.checkbox("Staviti UREDAJ van upotrebe (u servis)", value=True,
-                          help="Ako je u kvaru samo komponenta koja se moze zamijeniti, "
-                               "mozes ostaviti uredaj u upotrebi.")
+st.subheader("Moze li se sustav i dalje koristiti?")
+sustav_lbl = st.radio(
+    "Stanje sustava",
+    ["✅ DA — sustav radi (komponenta zamijenjena/premoscena)",
+     "⛔ NE — sustav se ne moze koristiti (ide u servis)"],
+    label_visibility="collapsed",
+)
+sustav_ok = sustav_lbl.startswith("✅")
+
+zamijenjeno = None
+if sustav_ok:
+    zamijenjeno = st.text_input(
+        "Cime je komponenta zamijenjena / kako je premosceno?",
+        placeholder="npr. VC ch15 umjesto VC ch14",
+        help="Da se poslije zna zasto uredaj radi iako je komponenta u kvaru.")
+    st.caption("Uredaj OSTAJE u upotrebi i dalje se nudi u zahtjev-formi.")
+else:
+    st.caption("Uredaj ce biti stavljen u servis i vise se nece nuditi za koristenje.")
 
 st.divider()
 if st.button("🛠️ Prijavi kvar", type="primary"):
@@ -153,7 +171,8 @@ if st.button("🛠️ Prijavi kvar", type="primary"):
             st.error(g)
     else:
         try:
-            prijavi(oid, opis.strip(), hitnost, prijavio, van_uporabe,
+            prijavi(oid, opis.strip(), hitnost, prijavio, sustav_ok,
+                    (zamijenjeno or "").strip() or None,
                     komp_id, (komp_naziv or "").strip() or None,
                     (komp_sn or "").strip() or None,
                     (komp_proiz or "").strip() or None, nova_komponenta)
@@ -163,11 +182,15 @@ if st.button("🛠️ Prijavi kvar", type="primary"):
                 "Komponenta": komp_naziv or "cijeli uredaj",
                 "Serijski broj": komp_sn or "—",
                 "Opis": opis.strip(), "Hitnost": hitnost, "Prijavio": prijavio,
-                "Van upotrebe": "DA" if van_uporabe else "NE",
-                "Datum": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                "Sustav radi": "DA" if sustav_ok else "NE",
+                "Zamijenjeno s": (zamijenjeno or "—"),
+                "Datum": sada().strftime("%Y-%m-%d %H:%M"),
             }
             st.success("✅ Kvar je prijavljen.")
-            if van_uporabe:
+            if sustav_ok:
+                st.info(f"'{naziv_opreme}' OSTAJE u upotrebi"
+                        + (f" (zamijenjeno: {zamijenjeno})." if zamijenjeno else "."))
+            else:
                 st.warning(f"'{naziv_opreme}' je stavljen u servis.")
             if nova_komponenta:
                 st.info("Komponenta je dodana u registar.")
@@ -199,7 +222,8 @@ else:
                          f"Komponenta: {k['Komponenta']}\n"
                          f"Serijski broj: {k['Serijski broj']}\n"
                          f"Hitnost: {k['Hitnost']}\n"
-                         f"Van upotrebe: {k['Van upotrebe']}\n"
+                         f"Sustav i dalje radi: {k['Sustav radi']}\n"
+                         f"Zamijenjeno s: {k['Zamijenjeno s']}\n"
                          f"Prijavio: {k['Prijavio']} ({k['Datum']})\n\n"
                          f"Opis kvara:\n{k['Opis']}\n"))
             st.success(f"📤 Poslano na: {', '.join(rec)}")

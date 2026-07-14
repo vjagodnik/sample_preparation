@@ -5,7 +5,7 @@ from datetime import datetime
 import streamlit as st
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from db import fetch, get_conn, prikazi_verziju
+from db import fetch, get_conn, prikazi_verziju, sada, lokalno
 
 st.set_page_config(page_title="Rjesavanje kvarova", page_icon="🔧")
 prikazi_verziju()
@@ -18,7 +18,8 @@ def otvoreni_kvarovi():
         SELECT k.id, o.id, o.naziv, o.interna_oznaka, o.status,
                k.opis_kvara, k.hitnost, k.prijavio, k.datum_prijave, k.status,
                coalesce(kmp.naziv, k.komponenta_opis) AS komponenta,
-               coalesce(kmp.serijski_broj, k.serijski_broj_dijela) AS serijski
+               coalesce(kmp.serijski_broj, k.serijski_broj_dijela) AS serijski,
+               k.sustav_upotrebljiv, k.zamijenjeno_s
         FROM kvarovi_opreme k
         JOIN oprema o ON o.id = k.oprema_id
         LEFT JOIN komponente kmp ON kmp.id = k.komponenta_id
@@ -37,7 +38,7 @@ def rijesi_kvar(kvar_id, oprema_id, novi_status_kvara, rjesenje, vrati_u_uporabu
                 UPDATE kvarovi_opreme
                 SET status = %s, rjesenje = %s, datum_rjesenja = %s
                 WHERE id = %s;""",
-                (novi_status_kvara, rjesenje or None, datetime.now(), kvar_id))
+                (novi_status_kvara, rjesenje or None, sada(), kvar_id))
             if vrati_u_uporabu:
                 cur.execute("UPDATE oprema SET status = 'u_uporabi' WHERE id = %s;",
                             (oprema_id,))
@@ -75,18 +76,23 @@ else:
 
 BOJE = {"visoka": "🔴", "srednja": "🟡", "niska": "🟢"}
 
-for (kid, oid, naziv, inv, status_opreme, opis, hitnost,
-     prijavio, datum, status_kvara, komponenta, serijski) in lista:
+for (kid, oid, naziv, inv, status_opreme, opis, hitnost, prijavio, datum,
+     status_kvara, komponenta, serijski, sustav_ok, zamijenjeno) in lista:
     with st.container(border=True):
         st.markdown(f"{BOJE.get(hitnost,'⚪')} **{naziv}**  ·  inv. {inv or '—'}")
         if komponenta:
             st.markdown(f"🔩 Komponenta: **{komponenta}**  ·  s/n **{serijski or '—'}**")
         else:
             st.caption("🔩 Kvar cijelog uredaja")
+        if sustav_ok:
+            st.success(f"✅ Sustav RADI dalje"
+                       + (f" — zamijenjeno: **{zamijenjeno}**" if zamijenjeno else ""))
+        elif sustav_ok is False:
+            st.error("⛔ Sustav se NE moze koristiti")
         c1, c2 = st.columns(2)
         c1.write(f"👤 Prijavio: **{prijavio or '—'}**")
         c1.write(f"⚠️ Hitnost: **{hitnost}**")
-        c2.write(f"📅 {datum:%Y-%m-%d %H:%M}" if datum else "📅 —")
+        c2.write(f"📅 {lokalno(datum):%Y-%m-%d %H:%M}" if datum else "📅 —")
         c2.write(f"📌 Kvar: **{status_kvara}**  ·  Oprema: **{status_opreme}**")
         st.caption(f"📝 {opis}")
 
@@ -139,7 +145,7 @@ with st.expander("📜 Zatvoreni kvarovi"):
         st.dataframe(
             [{"#": r[0], "Oprema": r[1], "Komponenta": r[2], "Hitnost": r[3],
               "Ishod": r[4], "Rjesenje": r[5],
-              "Kada": (r[6].strftime("%Y-%m-%d %H:%M") if r[6] else "—")}
+              "Kada": (lokalno(r[6]).strftime("%Y-%m-%d %H:%M") if r[6] else "—")}
              for r in povijest],
             use_container_width=True, hide_index=True)
     else:

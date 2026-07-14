@@ -5,7 +5,7 @@ from datetime import datetime
 import streamlit as st
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from db import fetch, execute, prikazi_verziju
+from db import fetch, execute, prikazi_verziju, sada, lokalno
 
 st.set_page_config(page_title="Odobravanje", page_icon="✅")
 prikazi_verziju()
@@ -30,7 +30,7 @@ def osoblje():
 def odluci(zid, novi_status, tko):
     execute("""UPDATE koristenje_opreme
                SET status = %s, odobrio = %s, datum_odobrenja = %s
-               WHERE id = %s;""", (novi_status, tko, datetime.now(), zid))
+               WHERE id = %s;""", (novi_status, tko, sada(), zid))
 
 
 st.title("✅ Odobravanje zahtjeva")
@@ -58,8 +58,8 @@ for (zid, naziv, inv, podn, v_od, v_do, sati, mat, potr, opis) in lista:
         c1.write(f"👤 Podnositelj: **{podn or '—'}**")
         c1.write(f"🧱 Materijal: {mat or '—'}")
         c1.write(f"🎯 Potreba: {potr or '—'}")
-        c2.write(f"🕒 Od: {v_od:%Y-%m-%d %H:%M}" if v_od else "🕒 Od: —")
-        c2.write(f"🕒 Do: {v_do:%Y-%m-%d %H:%M}" if v_do else "🕒 Do: —")
+        c2.write(f"🕒 Od: {lokalno(v_od):%Y-%m-%d %H:%M}" if v_od else "🕒 Od: —")
+        c2.write(f"🕒 Do: {lokalno(v_do):%Y-%m-%d %H:%M}" if v_do else "🕒 Do: —")
         c2.write(f"⏳ Trajanje: {sati or 0} h")
         if opis:
             st.caption(f"📝 {opis}")
@@ -87,7 +87,7 @@ with st.expander("📜 Nedavno odluceno"):
     if povijest:
         st.dataframe(
             [{"#": r[0], "Oprema": r[1], "Podnositelj": r[2], "Status": r[3],
-              "Odlucio": r[4], "Kada": (r[5].strftime("%Y-%m-%d %H:%M") if r[5] else "—")}
+              "Odlucio": r[4], "Kada": (lokalno(r[5]).strftime("%Y-%m-%d %H:%M") if r[5] else "—")}
              for r in povijest],
             use_container_width=True, hide_index=True)
     else:

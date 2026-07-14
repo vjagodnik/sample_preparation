@@ -1,6 +1,26 @@
-"""Zajednicko spajanje na Supabase + verzija aplikacije."""
+"""Zajednicko spajanje na Supabase + verzija aplikacije + vrijeme."""
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 import streamlit as st
 import psycopg2
+
+# Hrvatska vremenska zona (sama racuna ljetno/zimsko vrijeme)
+TZ = ZoneInfo("Europe/Zagreb")
+
+
+def sada():
+    """Trenutno vrijeme u hrvatskoj zoni (server je u UTC)."""
+    return datetime.now(TZ)
+
+
+def lokalno(dt):
+    """Vrijeme iz baze -> prikaz u hrvatskoj zoni."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+    return dt.astimezone(TZ)
 
 # ---------------------------------------------------------------
 #  VERZIJA APLIKACIJE
@@ -9,7 +29,7 @@ import psycopg2
 #    manja  (1.X.0) -> nova funkcija / stranica
 #    glavna (X.0.0) -> veca promjena strukture baze
 # ---------------------------------------------------------------
-VERZIJA = "1.2.0"
+VERZIJA = "1.3.0"
 DATUM_VERZIJE = "2026-07-14"
 
 

@@ -10,6 +10,13 @@ Format: `glavna.manja.zakrpa`
 
 ---
 
+## 1.3.0 — 2026-07-14
+- **Sustav i dalje radi?** — pri prijavi kvara komponente bira se može li se sustav
+  koristiti (npr. VC ch14 u kvaru, ali radi s VC ch15). Uređaj ide u servis **samo**
+  ako sustav nije upotrebljiv.
+- Novo polje **„Zamijenjeno s"** — bilježi čime je komponenta premoštena
+- **Vremenska zona `Europe/Zagreb`** — vremena više nisu -2 h (server radi u UTC)
+
 ## 1.2.0 — 2026-07-14
 - **Prijava kvara po komponenti** — uz cijeli uređaj, može se prijaviti i pojedini dio
   (volume controller, senzor, ćelija) sa **serijskim brojem**

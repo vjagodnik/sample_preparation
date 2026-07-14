@@ -6,7 +6,7 @@ import streamlit as st
 from openpyxl import Workbook
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from db import fetch, get_conn, prikazi_verziju
+from db import fetch, get_conn, prikazi_verziju, sada
 
 st.set_page_config(page_title="Zahtjev za opremu", page_icon="📨")
 prikazi_verziju()
@@ -55,8 +55,8 @@ def napravi_ics(z, v_od, v_do):
     with open(p, "w", encoding="utf-8") as f:
         f.write(
             "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Lab Geotehnika//HR\nBEGIN:VEVENT\n"
-            f"UID:{datetime.now().strftime('%Y%m%d%H%M%S')}@lab.geotehnika.hr\n"
-            f"DTSTAMP:{datetime.now().strftime('%Y%m%dT%H%M%S')}\n"
+            f"UID:{sada().strftime('%Y%m%d%H%M%S')}@lab.geotehnika.hr\n"
+            f"DTSTAMP:{sada().strftime('%Y%m%dT%H%M%S')}\n"
             f"DTSTART:{v_od.strftime('%Y%m%dT%H%M%S')}\n"
             f"DTEND:{v_do.strftime('%Y%m%dT%H%M%S')}\n"
             f"SUMMARY:{z['Oprema']} - {z['Podnositelj']}\n"
