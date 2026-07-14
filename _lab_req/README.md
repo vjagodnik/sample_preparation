@@ -11,6 +11,8 @@ Streamlit aplikacija povezana sa Supabase (PostgreSQL) bazom.
 | 🛠️ Prijava kvara | brza prijava kvara — uređaj ide `u_servisu` |
 | ➕ Unos opreme | dodavanje novog uređaja u inventar |
 | 🔧 Rješavanje kvarova | zatvaranje kvara — uređaj se vraća `u_uporabi` |
+| 📝 Novi posao | otvaranje/dopuna posla: upit → ponuda → narudžbenica → izvještaj |
+| 📊 Pregledi | iskorištenost opreme, poslovi, uzorci, kvarovi (+ izvoz CSV) |
 
 ## Pokretanje (Streamlit Cloud)
 1. Sadržaj ove mape stavi u **korijen** GitHub repozitorija.

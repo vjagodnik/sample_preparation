@@ -67,6 +67,8 @@ st.markdown(
 | 📥 Prijem uzorka | zaprimanje uzorka | 🔒 prijava |
 | ➕ Unos opreme | dodavanje uredaja u inventar | 🔒 prijava |
 | 🔧 Rjesavanje kvarova | zatvaranje kvara, povratak u upotrebu | 🔒 prijava |
+| 📝 Novi posao | otvaranje posla: upit → ponuda → narudzbenica → izvjestaj | 🔒 prijava |
+| 📊 Pregledi | iskoristenost opreme, poslovi, uzorci, kvarovi (+CSV) | 🔒 prijava |
 """
 )
 

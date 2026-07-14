@@ -10,6 +10,17 @@ Format: `glavna.manja.zakrpa`
 
 ---
 
+## 1.5.0 — 2026-07-14
+- Nova stranica **📝 Novi posao** — cijeli tok posla (upit → ponuda → narudžbenica →
+  izvještaj) s brojem, datumom i **linkom na dokument**; klijent postojeći ili novi;
+  postojeći posao se može **dopuniti** (npr. kad stigne narudžbenica)
+- Nova stranica **📊 Pregledi** — iskorištenost opreme (sati, broj korištenja),
+  poslovi po fazi, uzorci, kvarovi po uređaju; grafovi + **izvoz u CSV**
+- Pregled **upozorava na umjeravanje** koje istječe u sljedećih 60 dana
+- Razdoblje pregleda: brzi izbor (**ovaj/prošli mjesec, ova/prošla godina, sve**)
+  ili **ručni odabir** bilo kojeg perioda; primjenjuje se na opremu, poslove,
+  uzorke i kvarove
+
 ## 1.4.0 — 2026-07-14
 - **Pristup po ulogama** — administrativne stranice (Odobravanje, Prijem uzorka,
   Unos opreme, Rješavanje kvarova) traže **prijavu imenom i lozinkom**
