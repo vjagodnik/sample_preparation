@@ -90,10 +90,12 @@ def parse_hydrometer_file(source: BinaryIO | BytesIO | str | Path, filename: str
         "reading": _numeric(raw["reading"]),
     }).dropna()
     if data.empty:
-        raise ValueError("Datoteka nema valjana mjerenja areometrom.")
+        raise ValueError("Datoteka nema valjana mjerenja hidrometrom!")
     return data.sort_values("eltime").reset_index(drop=True)
 
-
+#-------------------------------------------------------------
+#ovo treba izmjentii ovisno o vrsti kalibracije hidrometra
+#-------------------------------------------------------------
 def hydro_bulb(reading: np.ndarray) -> np.ndarray:
     return 20.761 - 0.3958 * reading
 
