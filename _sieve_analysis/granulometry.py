@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 
 
+
 SIEVE_ALIASES = {
     "sieve": "sieve_mm", "sieve_mm": "sieve_mm", "opening": "sieve_mm",
     "otvor": "sieve_mm", "otvor sita": "sieve_mm", "mm": "sieve_mm",
@@ -163,6 +164,70 @@ def passing_at(data: pd.DataFrame, diameter_mm: float, passing_column: str) -> f
     if valid.empty or not valid["diameter_mm"].min() <= diameter_mm <= valid["diameter_mm"].max():
         return None
     return float(np.interp(np.log10(diameter_mm), np.log10(valid["diameter_mm"]), valid[passing_column]))
+
+
+def diameter_at_passing(
+    data: pd.DataFrame, passing_pct: float, passing_column: str
+) -> float | None:
+    """Return grain diameter at a target passing percentage.
+
+    Interpolation is linear in passing percentage and logarithmic in grain
+    diameter, consistent with the semi-logarithmic granulometric diagram.
+    """
+    if not 0 <= passing_pct <= 100:
+        raise ValueError("Ciljani postotak prolaza mora biti između 0 i 100.")
+
+    valid = data[["diameter_mm", passing_column]].dropna().copy()
+    valid["diameter_mm"] = pd.to_numeric(valid["diameter_mm"], errors="coerce")
+    valid[passing_column] = pd.to_numeric(valid[passing_column], errors="coerce")
+    valid = valid.dropna()
+    valid = valid[
+        (valid["diameter_mm"] > 0) & valid[passing_column].between(0, 100)
+    ]
+    if len(valid) < 2:
+        return None
+
+    # Average duplicate diameters first. The curve is then ordered from fine to
+    # coarse and inverse-interpolated in log(diameter), as read from a semi-log
+    # granulometric diagram.
+    valid["log_diameter"] = np.log10(valid["diameter_mm"].astype(float))
+    valid = (
+        valid.groupby("log_diameter", as_index=False)[passing_column]
+        .mean()
+        .sort_values("log_diameter")
+    )
+
+    p_min = float(valid[passing_column].min())
+    p_max = float(valid[passing_column].max())
+    if not p_min <= passing_pct <= p_max:
+        return None
+
+    passing = valid[passing_column].to_numpy(float)
+    log_diameter_values = valid["log_diameter"].to_numpy(float)
+
+    # Find the measured segment that brackets the target. This preserves the
+    # actual curve connection and avoids pairing unrelated points if a small
+    # measurement fluctuation makes the data locally non-monotonic.
+    exact = np.flatnonzero(np.isclose(passing, passing_pct, rtol=0, atol=1e-12))
+    if exact.size:
+        log_diameter = float(np.mean(log_diameter_values[exact]))
+        return float(10**log_diameter)
+
+    crossings = np.flatnonzero(
+        ((passing[:-1] < passing_pct) & (passing[1:] > passing_pct))
+        | ((passing[:-1] > passing_pct) & (passing[1:] < passing_pct))
+    )
+    if crossings.size == 0:
+        return None
+
+    # A proper granulometric curve is monotonic and has one crossing. If noisy
+    # data creates several crossings, use the first one in fine-to-coarse order.
+    i = int(crossings[0])
+    fraction = (passing_pct - passing[i]) / (passing[i + 1] - passing[i])
+    log_diameter = log_diameter_values[i] + fraction * (
+        log_diameter_values[i + 1] - log_diameter_values[i]
+    )
+    return float(10**log_diameter)
 
 
 def combined_export(sieve: pd.DataFrame | None, hydrometer: pd.DataFrame | None) -> pd.DataFrame:
