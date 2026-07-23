@@ -24,12 +24,15 @@ pa.set_memory_pool(pa.system_memory_pool())
 from granulometry import (
     HydrometerParameters,
     combined_export,
+    diameter_at_passing,
     hydrometer_analysis,
     parse_hydrometer_file,
     parse_sieve_file,
     passing_at,
     sieve_analysis,
 )
+
+plt.style.use("classic")
 
 st.set_page_config(page_title="Granulometrijska analiza", page_icon="🪨", layout="wide")
 st.title("Granulometrijska analiza")
@@ -123,7 +126,7 @@ def plot_curve(series):
     ax.set_xlabel("Otvor sita [mm]")
     ax.set_ylabel("Postotak prolaza kroz sito [%]")
     ax.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: f"{x:g}"))
-    ax.legend(loc="best")
+    ax.legend(loc="best", numpoints=1)
     fig.tight_layout()
     return fig
 
@@ -230,12 +233,94 @@ with tab_results:
             export_hydro = hydrometer_analysis(hydro_raw, params, fine_fraction)
             series.append(
                 (export_hydro["diameter_mm"], export_hydro["corrected_passing_pct"],
-                 f"Areometriranje (korigirano × {fine_fraction / 100:.3f})", "s")
+                 "Areometriranje", "s")
             )
             st.metric("Prolaz na najfinijem situ", f"{fine_fraction:.2f} %")
 
         fig = plot_curve(series)
         st.pyplot(fig, use_container_width=True)
+
+        # Build the curve used for characteristic diameters. For the full curve,
+        # hydrometer points are used only below the finest sieve opening.
+        if mode == "Mehaničko prosijavanje":
+            characteristic_curve = sieve_result[["sieve_mm", "passing_pct"]].rename(
+                columns={"sieve_mm": "diameter_mm", "passing_pct": "curve_passing_pct"}
+            )
+        elif mode == "Puna granulometrijska krivulja":
+            finest_sieve = float(sieve_result["sieve_mm"].min())
+            sieve_curve = sieve_result[["sieve_mm", "passing_pct"]].rename(
+                columns={"sieve_mm": "diameter_mm", "passing_pct": "curve_passing_pct"}
+            )
+            hydro_curve = export_hydro.loc[
+                export_hydro["diameter_mm"] < finest_sieve,
+                ["diameter_mm", "corrected_passing_pct"],
+            ].rename(columns={"corrected_passing_pct": "curve_passing_pct"})
+            characteristic_curve = pd.concat(
+                [sieve_curve, hydro_curve], ignore_index=True
+            )
+        else:
+            characteristic_curve = None
+
+        fines_pct = None
+        if characteristic_curve is not None:
+            fines_pct = passing_at(
+                characteristic_curve, 0.063, "curve_passing_pct"
+            )
+
+        st.subheader("Karakteristični promjeri i koeficijenti")
+        d10 = d30 = d50 = d60 = cu = cc = None
+        if characteristic_curve is not None:
+            d10 = diameter_at_passing(
+                characteristic_curve, 10.0, "curve_passing_pct"
+            )
+            d30 = diameter_at_passing(
+                characteristic_curve, 30.0, "curve_passing_pct"
+            )
+            d50 = diameter_at_passing(
+                characteristic_curve, 50.0, "curve_passing_pct"
+            )
+            d60 = diameter_at_passing(
+                characteristic_curve, 60.0, "curve_passing_pct"
+            )
+            if d10 is not None and d60 is not None and d10 > 0:
+                cu = d60 / d10
+            if d10 is not None and d30 is not None and d60 is not None and d10 * d60 > 0:
+                cc = d30**2 / (d10 * d60)
+
+        values = [
+            ("D60", d60, "mm"),
+            ("D50", d50, "mm"),
+            ("D30", d30, "mm"),
+            ("D10", d10, "mm"),
+            ("Cu", cu, ""),
+            ("Cc", cc, ""),
+        ]
+        metric_columns = st.columns(6)
+        for column, (label, value, unit) in zip(metric_columns, values):
+            if value is None:
+                column.metric(label, "N/A")
+            elif unit:
+                column.metric(label, f"{value:.4g} {unit}")
+            else:
+                column.metric(label, f"{value:.3f}")
+
+        available_passing = None
+        if characteristic_curve is not None:
+            available_passing = characteristic_curve["curve_passing_pct"].dropna()
+
+        if available_passing is None or available_passing.empty:
+            st.caption(
+                "Karakteristične promjere nije moguće odrediti iz odabranih podataka."
+            )
+        elif any(value is None for value in (d10, d30, d50, d60)):
+            p_min = float(available_passing.min())
+            p_max = float(available_passing.max())
+            st.caption(
+                f"N/A je prikazan samo za postotke izvan raspona izmjerene "
+                f"krivulje ({p_min:.2f}–{p_max:.2f} % prolaza). "
+                "Cu zahtijeva D10 i D60, a Cc zahtijeva D10, D30 i D60."
+            )
+
         if export_hydro is not None:
             clay_col = (
                 "corrected_passing_pct"
